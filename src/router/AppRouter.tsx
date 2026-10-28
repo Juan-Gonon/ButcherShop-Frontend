@@ -1,6 +1,5 @@
+import { LoginPage } from '../page/LoginPage'
 
 export const AppRouter = () => {
-  return (
-    <div>AppRouter</div>
-  )
+  return <LoginPage />
 }
