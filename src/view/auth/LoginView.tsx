@@ -1,6 +1,6 @@
-import { Card } from '../../components/Card'
-import { Header } from '../../components/Header'
-import { LoginForm } from '../../features/auth/LoginForm'
+import { Card } from '../../components/ui/Card'
+import { Header } from '../../components/ui/Header'
+import { LoginForm } from '../../features/auth/components/LoginForm'
 
 export const LoginView = () => {
   const handleSupportClick = (e: React.MouseEvent) => {
