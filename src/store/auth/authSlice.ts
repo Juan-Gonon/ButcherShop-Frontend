@@ -6,7 +6,7 @@ const initialState = {
   errorMessage: undefined
 }
 
-const authSlice = createSlice({
+export const authSlice = createSlice({
   name: 'authSlice',
   initialState,
   reducers: {
@@ -29,8 +29,6 @@ const authSlice = createSlice({
       state.errorMessage = undefined
     }
   }
-});
+})
 
 export const {onChecking, onLogin, onLogOut, clearErrorMessage} = authSlice.actions
-
-export default authSlice.reducer
