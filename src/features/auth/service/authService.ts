@@ -25,3 +25,23 @@ export const authService = async ({
     throw new Error('Ocurrió un error inesperado', { cause: error })
   }
 }
+
+export const renewAuthService = async () => {
+  try {
+    const res = await api.get('/auth/renew')
+
+    const { data } = res
+
+    return data
+  } catch (error) {
+    console.error('Error en el servicio de autenticación:', error)
+
+    if (isAxiosError(error)) {
+      const serverMessage =
+        error.response?.data?.error || 'Error al iniciar sesión'
+      throw new Error(serverMessage, { cause: error })
+    }
+
+    throw new Error('Ocurrió un error inesperado', { cause: error })
+  }
+}

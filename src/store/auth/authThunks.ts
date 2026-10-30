@@ -1,5 +1,8 @@
 import type { Dispatch } from '@reduxjs/toolkit'
-import { authService } from '../../features/auth/service/authService'
+import {
+  authService,
+  renewAuthService
+} from '../../features/auth/service/authService'
 import { clearErrorMessage, onChecking, onLogin, onLogOut } from './authSlice'
 import type { UserLogin } from '../../features/auth/types/interface'
 
@@ -13,10 +16,11 @@ export const startLogin = ({ user, password }: UserLogin) => {
       localStorage.setItem('token-init-date', String(new Date().getTime()))
 
       dispatch(onLogin(data))
-      
-      return true 
+
+      return true
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error al iniciar sesión'
+      const errorMessage =
+        error instanceof Error ? error.message : 'Error al iniciar sesión'
       console.error('Error en startLogin:', error)
 
       // Mandamos el error al estado global para que la pantalla de login lo muestre
@@ -27,7 +31,46 @@ export const startLogin = ({ user, password }: UserLogin) => {
         dispatch(clearErrorMessage())
       }, 5000)
 
-      return false 
+      return false
+    }
+  }
+}
+
+export const checkAuthToken = () => {
+  return async (dispatch: Dispatch) => {
+    const token = localStorage.getItem('token')
+
+    if (!token) {
+      dispatch(onLogOut('Cerrando Sesión'))
+      return
+    }
+
+    try {
+      // servicio de renovación
+      const data = await renewAuthService()
+
+      // nuevo token
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('token-init-date', String(new Date().getTime()))
+
+      // Actualizamos el estado
+      dispatch(onLogin(data))
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Sesión expirada'
+
+      console.error('Error al renovar token:', error)
+
+      dispatch(onLogOut(errorMessage))
+
+      // Limpiamos los datos de autenticación del navegador
+      localStorage.removeItem('token')
+      localStorage.removeItem('token-init-date')
+
+      // limpiar el mensaje de error
+      setTimeout(() => {
+        dispatch(clearErrorMessage())
+      }, 5000)
     }
   }
 }
