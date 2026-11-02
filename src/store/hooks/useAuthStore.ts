@@ -5,7 +5,8 @@ import type { AppDispatch, RootState } from '..'
 import type { UserLogin } from '../../features/auth/types/interface'
 
 export const useAuthStore = () => {
-  const { status, user, token, errorMessage } = useSelector((state: RootState) => state.auth)
+  const { status, user, token, errorMessage, verificationErrorKind } =
+    useSelector((state: RootState) => state.auth)
   
   // Thunks asíncronos
   const dispatch = useDispatch<AppDispatch>()
@@ -29,6 +30,7 @@ export const useAuthStore = () => {
     user,
     token,
     errorMessage,
+    verificationErrorKind,
     
     // Métodos (Acciones / Thunks)
     starLogin,

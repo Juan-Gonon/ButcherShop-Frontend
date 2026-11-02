@@ -1,13 +1,63 @@
 import type { Dispatch } from '@reduxjs/toolkit'
 import {
+  AuthServiceError,
   authService,
   renewAuthService
 } from '../../features/auth/service/authService'
-import { clearErrorMessage, onChecking, onLogin, onLogOut } from './authSlice'
+import {
+  clearErrorMessage,
+  onChecking,
+  onLogin,
+  onLogOut,
+  onVerificationError
+} from './authSlice'
 import type { UserLogin } from '../../features/auth/types/interface'
 import type { AppDispatch } from '..'
 
 let authCheckPromise: Promise<void> | null = null
+
+const clearStoredSession = () => {
+  for (const key of ['token', 'token-init-date']) {
+    try {
+      localStorage.removeItem(key)
+    } catch (error) {
+      console.error(`Error al eliminar ${key} de la sesión:`, error)
+    }
+  }
+}
+
+const getRenewalErrorKind = (
+  error: unknown
+): 'invalid-session' | 'temporary' | 'unexpected' => {
+  if (!(error instanceof AuthServiceError)) {
+    return 'unexpected'
+  }
+
+  if (
+    error.status === 401 ||
+    error.status === 403
+  ) {
+    return 'invalid-session'
+  }
+
+  if (
+    (error.status !== undefined && error.status >= 500 && error.status < 600) ||
+    error.isNetworkError ||
+    error.code === 'ECONNABORTED' ||
+    error.code === 'ETIMEDOUT'
+  ) {
+    return 'temporary'
+  }
+
+  if (
+    error.backendError?.error === 'Invalid or expired token' ||
+    error.backendError?.error === 'No token provider'
+  ) {
+    return 'invalid-session'
+  }
+
+  return 'unexpected'
+}
 
 export const startLogin = ({ user, password }: UserLogin) => {
   return async (dispatch: Dispatch) => {
@@ -28,6 +78,7 @@ export const startLogin = ({ user, password }: UserLogin) => {
 
       // Mandamos el error al estado global para que la pantalla de login lo muestre
       dispatch(onLogOut(errorMessage))
+      clearStoredSession()
 
       // Limpiamos el error del estado
       setTimeout(() => {
@@ -48,11 +99,17 @@ const checkAuthTokenOnce = () => {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Session expired'
-      dispatch(onLogOut(errorMessage))
+      dispatch(
+        onVerificationError({
+          message: errorMessage,
+          kind: 'unexpected'
+        })
+      )
       return
     }
 
     if (!token) {
+      clearStoredSession()
       dispatch(onLogOut('Cerrando Sesión'))
       setTimeout(() => {
         dispatch(clearErrorMessage())
@@ -76,12 +133,19 @@ const checkAuthTokenOnce = () => {
         error instanceof Error ? error.message : 'Sesión expirada'
 
       console.error('Error al renovar token:', error)
+      const errorKind = getRenewalErrorKind(error)
 
-      dispatch(onLogOut(errorMessage))
-
-      // Limpiamos los datos de autenticación del navegador
-      localStorage.removeItem('token')
-      localStorage.removeItem('token-init-date')
+      if (errorKind === 'invalid-session') {
+        dispatch(onLogOut(errorMessage))
+        clearStoredSession()
+      } else {
+        dispatch(
+          onVerificationError({
+            message: errorMessage,
+            kind: errorKind
+          })
+        )
+      }
 
       // limpiar el mensaje de error
       setTimeout(() => {
@@ -109,8 +173,7 @@ export const checkAuthToken = () => {
 
 export const logoutAction = () => {
   return (dispatch: AppDispatch) => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('token-init-date')
+    clearStoredSession()
     dispatch(onLogOut('Cerrando sesión'))
     setTimeout(() => {
       dispatch(clearErrorMessage())
