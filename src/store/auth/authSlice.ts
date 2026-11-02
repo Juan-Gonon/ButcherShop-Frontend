@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type {
-  AuthResponse,
+  AuthSuccess,
   UserInfo
 } from '../../features/auth/types/interface'
 
@@ -27,7 +27,7 @@ export const authSlice = createSlice({
       state.user = null
       state.errorMessage = null
     },
-    onLogin: (state, { payload }: PayloadAction<AuthResponse>) => {
+    onLogin: (state, { payload }: PayloadAction<AuthSuccess>) => {
       state.status = 'authenticated'
       state.user = payload.user
       state.token = payload.token
