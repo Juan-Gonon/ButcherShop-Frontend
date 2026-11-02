@@ -1,18 +1,30 @@
 import api from '../../../lib/api/api'
-import type { UserLogin, AuthResponse } from '../types/interface'
+import type {
+  AuthResponse,
+  AuthSuccess,
+  UserLogin
+} from '../types/interface'
 import { isAxiosError } from 'axios'
+
+const getSuccessfulAuthResponse = (data: AuthResponse): AuthSuccess => {
+  if (!data.ok) {
+    throw new Error(data.error)
+  }
+
+  return data
+}
 
 export const authService = async ({
   user,
   password
-}: UserLogin): Promise<AuthResponse> => {
+}: UserLogin): Promise<AuthSuccess> => {
   try {
     const res = await api.post<AuthResponse>('/auth/', {
       usuario: user,
       password: password
     })
 
-    return res.data
+    return getSuccessfulAuthResponse(res.data)
   } catch (error) {
     console.error('Error en el servicio de autenticación:', error)
 
@@ -26,13 +38,11 @@ export const authService = async ({
   }
 }
 
-export const renewAuthService = async () => {
+export const renewAuthService = async (): Promise<AuthSuccess> => {
   try {
-    const res = await api.get('/auth/renew')
+    const res = await api.get<AuthResponse>('/auth/renew')
 
-    const { data } = res
-
-    return data
+    return getSuccessfulAuthResponse(res.data)
   } catch (error) {
     console.error('Error en el servicio de autenticación:', error)
 
