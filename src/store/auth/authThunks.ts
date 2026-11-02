@@ -1,6 +1,5 @@
 import type { Dispatch } from '@reduxjs/toolkit'
 import {
-  AuthServiceError,
   authService,
   renewAuthService
 } from '../../features/auth/service/authService'
@@ -13,6 +12,7 @@ import {
 } from './authSlice'
 import type { UserLogin } from '../../features/auth/types/interface'
 import type { AppDispatch } from '..'
+import { AuthServiceError } from '../../features/auth/errors/authServiceError'
 
 let authCheckPromise: Promise<void> | null = null
 
@@ -113,7 +113,7 @@ const checkAuthTokenOnce = () => {
       dispatch(onLogOut('Cerrando Sesión'))
       setTimeout(() => {
         dispatch(clearErrorMessage())
-      }, 1000)
+      }, 500)
 
       return
     }
