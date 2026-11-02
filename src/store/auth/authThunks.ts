@@ -54,6 +54,10 @@ const checkAuthTokenOnce = () => {
 
     if (!token) {
       dispatch(onLogOut('Cerrando Sesión'))
+      setTimeout(() => {
+        dispatch(clearErrorMessage())
+      }, 1000)
+      
       return
     }
 
