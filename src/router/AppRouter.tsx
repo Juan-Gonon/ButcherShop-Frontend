@@ -1,14 +1,30 @@
 // src/router/AppRouter.tsx
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useAuthStore } from '../store/hooks/useAuthStore'
 import { LoginPage } from '../page/LoginPage'
-import { HomePage } from '../page/HomePage'
-import { AdminPage } from '../page/AdminPage'
-import { DeliveryPage } from '../page/DeliveryPage'
+import { NavigationMessagePage } from '../page/NavigationMessagePage'
+import { NavigationPlaceholderPage } from '../page/NavigationPlaceholderPage'
+import { CarniceriaLayout } from '../layouts/CarniceriaLayout'
+import { DeliveryLayout } from '../layouts/DeliveryLayout'
+import { SuperAdminLayout } from '../layouts/SuperAdminLayout'
+import {
+  AuthenticatedRedirect,
+  InitialRouteRedirect,
+  NotFoundRoute,
+  RequireRoles
+} from './RouteGuards'
+import { CARNICERIA_ROLES, USER_ROLES } from './roles'
+
+const ROLE_2_ONLY = [USER_ROLES.CARNICERIA_ADMIN] as const
+const CARNICERIA_POS_ROLES = [
+  USER_ROLES.CARNICERIA_ADMIN,
+  USER_ROLES.OPERADOR,
+  USER_ROLES.CAJERO
+] as const
 
 export const AppRouter = () => {
-  const { status, user, renewLogin } = useAuthStore()
+  const { status, renewLogin } = useAuthStore()
 
   useEffect(() => {
     renewLogin()
@@ -28,42 +44,104 @@ export const AppRouter = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {status === 'not-authenticated' ? (
-          <>
-            <Route path='/auth/*' element={<LoginPage />} />
-            <Route path='*' element={<Navigate to='/auth/login' replace />} />
-          </>
-        ) : (
-          // --- RUTAS PRIVADAS (SEGÚN EL ROL) ---
-          <>
-            {user?.id_rol === '1' && (
-              <Route path='/admin' element={<AdminPage />} />
-            )}
-            {user?.id_rol === '2' && (
-              <Route path='/carniceria/:uuid' element={<HomePage />} />
-            )}
-            {user?.id_rol === '4' && (
-              <Route path='/delivery' element={<DeliveryPage />} />
-            )}
+        <Route
+          path='/auth/*'
+          element={
+            <AuthenticatedRedirect>
+              <LoginPage />
+            </AuthenticatedRedirect>
+          }
+        />
+        <Route path='/' element={<InitialRouteRedirect />} />
 
-            {/* Redirección por defecto según su rol*/}
-            <Route
-              path='*'
-              element={
-                <Navigate
-                  to={
-                    user?.id_rol === '1'
-                      ? '/admin'
-                      : user?.id_rol === '4'
-                        ? '/delivery'
-                        : `/carniceria/${user?.uuid}`
-                  }
-                  replace
-                />
-              }
-            />
-          </>
-        )}
+        <Route
+          path='/super-admin'
+          element={
+            <RequireRoles allowedRoles={[USER_ROLES.SUPER_ADMIN]}>
+              <SuperAdminLayout />
+            </RequireRoles>
+          }
+        >
+          <Route index element={<NavigationPlaceholderPage title='Panel global' />} />
+          <Route path='carnicerias' element={<NavigationPlaceholderPage title='Carnicerías' />} />
+          <Route path='usuarios' element={<NavigationPlaceholderPage title='Usuarios globales' />} />
+          <Route path='*' element={<NavigationMessagePage title='Página no encontrada' message='La ruta solicitada no existe.' />} />
+        </Route>
+
+        <Route
+          path='/carniceria'
+          element={
+            <RequireRoles allowedRoles={CARNICERIA_ROLES}>
+              <CarniceriaLayout />
+            </RequireRoles>
+          }
+        >
+          <Route
+            index
+            element={
+              <RequireRoles allowedRoles={ROLE_2_ONLY}>
+                <NavigationPlaceholderPage title='Inicio de carnicería' />
+              </RequireRoles>
+            }
+          />
+          <Route
+            path='pos'
+            element={
+              <RequireRoles allowedRoles={CARNICERIA_POS_ROLES}>
+                <NavigationPlaceholderPage title='Punto de venta' />
+              </RequireRoles>
+            }
+          />
+          <Route
+            path='clientes'
+            element={
+              <RequireRoles allowedRoles={CARNICERIA_POS_ROLES}>
+                <NavigationPlaceholderPage title='Clientes' />
+              </RequireRoles>
+            }
+          />
+          <Route
+            path='productos'
+            element={
+              <RequireRoles allowedRoles={ROLE_2_ONLY}>
+                <NavigationPlaceholderPage title='Productos' />
+              </RequireRoles>
+            }
+          />
+          <Route
+            path='cortes'
+            element={
+              <RequireRoles allowedRoles={ROLE_2_ONLY}>
+                <NavigationPlaceholderPage title='Cortes' />
+              </RequireRoles>
+            }
+          />
+          <Route
+            path='personal-caja'
+            element={
+              <RequireRoles allowedRoles={ROLE_2_ONLY}>
+                <NavigationPlaceholderPage title='Personal de caja' />
+              </RequireRoles>
+            }
+          />
+          <Route path='*' element={<NavigationMessagePage title='Página no encontrada' message='La ruta solicitada no existe.' />} />
+        </Route>
+
+        <Route
+          path='/delivery'
+          element={
+            <RequireRoles allowedRoles={[USER_ROLES.REPARTIDOR]}>
+              <DeliveryLayout />
+            </RequireRoles>
+          }
+        >
+          <Route index element={<NavigationPlaceholderPage title='Inicio de reparto' />} />
+          <Route path='pedidos' element={<NavigationPlaceholderPage title='Pedidos de reparto' />} />
+          <Route path='entregas' element={<NavigationPlaceholderPage title='Entregas' />} />
+          <Route path='*' element={<NavigationMessagePage title='Página no encontrada' message='La ruta solicitada no existe.' />} />
+        </Route>
+
+        <Route path='*' element={<NotFoundRoute />} />
       </Routes>
     </BrowserRouter>
   )
