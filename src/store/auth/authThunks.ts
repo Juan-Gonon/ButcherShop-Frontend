@@ -57,7 +57,7 @@ const checkAuthTokenOnce = () => {
       setTimeout(() => {
         dispatch(clearErrorMessage())
       }, 1000)
-      
+
       return
     }
 
@@ -104,5 +104,16 @@ export const checkAuthToken = () => {
       })
 
     return authCheckPromise
+  }
+}
+
+export const logoutAction = () => {
+  return (dispatch: AppDispatch) => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('token-init-date')
+    dispatch(onLogOut('Cerrando sesión'))
+    setTimeout(() => {
+      dispatch(clearErrorMessage())
+    }, 1000)
   }
 }

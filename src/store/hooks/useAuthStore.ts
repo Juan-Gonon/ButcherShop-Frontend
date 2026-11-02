@@ -1,7 +1,6 @@
 import { useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { checkAuthToken, startLogin } from '../auth/authThunks'
-import { onLogOut as logoutAction } from '../auth/authSlice' // Renombramos para evitar conflictos
+import { checkAuthToken, startLogin, logoutAction } from '../auth/authThunks'
 import type { AppDispatch, RootState } from '..'
 import type { UserLogin } from '../../features/auth/types/interface'
 
@@ -21,9 +20,7 @@ export const useAuthStore = () => {
   )
 
   const startLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('token-init-date')
-    dispatch(logoutAction('Cerrando sesión'))
+    dispatch(logoutAction())
   }
 
   return {
