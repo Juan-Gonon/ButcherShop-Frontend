@@ -5,6 +5,9 @@ import {
 } from '../../features/auth/service/authService'
 import { clearErrorMessage, onChecking, onLogin, onLogOut } from './authSlice'
 import type { UserLogin } from '../../features/auth/types/interface'
+import type { AppDispatch } from '..'
+
+let authCheckPromise: Promise<void> | null = null
 
 export const startLogin = ({ user, password }: UserLogin) => {
   return async (dispatch: Dispatch) => {
@@ -36,9 +39,18 @@ export const startLogin = ({ user, password }: UserLogin) => {
   }
 }
 
-export const checkAuthToken = () => {
+const checkAuthTokenOnce = () => {
   return async (dispatch: Dispatch) => {
-    const token = localStorage.getItem('token')
+    dispatch(onChecking())
+    let token: string | null
+    try {
+      token = localStorage.getItem('token')
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Session expired'
+      dispatch(onLogOut(errorMessage))
+      return
+    }
 
     if (!token) {
       dispatch(onLogOut('Cerrando Sesión'))
@@ -72,5 +84,21 @@ export const checkAuthToken = () => {
         dispatch(clearErrorMessage())
       }, 5000)
     }
+  }
+}
+
+export const checkAuthToken = () => {
+  return (dispatch: AppDispatch) => {
+    if (authCheckPromise) {
+      return authCheckPromise
+    }
+
+    authCheckPromise = Promise.resolve(dispatch(checkAuthTokenOnce()))
+      .then(() => undefined)
+      .finally(() => {
+        authCheckPromise = null
+      })
+
+    return authCheckPromise
   }
 }

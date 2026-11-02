@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { checkAuthToken, startLogin } from '../auth/authThunks'
 import { onLogOut as logoutAction } from '../auth/authSlice' // Renombramos para evitar conflictos
@@ -14,9 +15,10 @@ export const useAuthStore = () => {
     return await dispatch(startLogin(credentials))
   }
 
-  const renewLogin = async () => {
-    return await dispatch(checkAuthToken())
-  }
+  const renewLogin = useCallback(
+    () => dispatch(checkAuthToken()),
+    [dispatch]
+  )
 
   const startLogout = () => {
     localStorage.removeItem('token')
