@@ -20,8 +20,8 @@ const clearStoredSession = () => {
   for (const key of ['token', 'token-init-date']) {
     try {
       localStorage.removeItem(key)
-    } catch (error) {
-      console.error(`Error al eliminar ${key} de la sesión:`, error)
+    } catch {
+      console.error('No se pudo eliminar una clave de sesión almacenada')
     }
   }
 }
@@ -33,19 +33,13 @@ const getRenewalErrorKind = (
     return 'unexpected'
   }
 
-  if (
-    error.status === 401 ||
-    error.status === 403
-  ) {
+  switch (error.category) {
+  case 'authentication':
+  case 'authorization':
     return 'invalid-session'
-  }
-
-  if (
-    (error.status !== undefined && error.status >= 500 && error.status < 600) ||
-    error.isNetworkError ||
-    error.code === 'ECONNABORTED' ||
-    error.code === 'ETIMEDOUT'
-  ) {
+  case 'server':
+  case 'timeout':
+  case 'network':
     return 'temporary'
   }
 
@@ -57,6 +51,18 @@ const getRenewalErrorKind = (
   }
 
   return 'unexpected'
+}
+
+const getSafeErrorContext = (error: unknown) => {
+  if (!(error instanceof AuthServiceError)) {
+    return { category: 'unexpected' as const }
+  }
+
+  return {
+    category: error.category,
+    ...(error.status !== undefined ? { status: error.status } : {}),
+    ...(error.code ? { code: error.code } : {})
+  }
 }
 
 export const startLogin = ({ user, password }: UserLogin) => {
@@ -73,8 +79,10 @@ export const startLogin = ({ user, password }: UserLogin) => {
       return true
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Error al iniciar sesión'
-      console.error('Error en startLogin:', error)
+        error instanceof AuthServiceError && error.message
+          ? error.message
+          : 'No se pudo iniciar sesión. Verifica tus datos e inténtalo de nuevo.'
+      console.error('Error de login', getSafeErrorContext(error))
 
       // Mandamos el error al estado global para que la pantalla de login lo muestre
       dispatch(onLogOut(errorMessage))
@@ -96,12 +104,10 @@ const checkAuthTokenOnce = () => {
     let token: string | null
     try {
       token = localStorage.getItem('token')
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Session expired'
+    } catch {
       dispatch(
         onVerificationError({
-          message: errorMessage,
+          message: 'No se pudo comprobar la sesión almacenada.',
           kind: 'unexpected'
         })
       )
@@ -129,11 +135,15 @@ const checkAuthTokenOnce = () => {
       // Actualizamos el estado
       dispatch(onLogin(data))
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Sesión expirada'
-
-      console.error('Error al renovar token:', error)
       const errorKind = getRenewalErrorKind(error)
+      const errorMessage =
+        errorKind === 'invalid-session'
+          ? 'Tu sesión expiró o dejó de ser válida. Inicia sesión nuevamente.'
+          : errorKind === 'temporary'
+            ? 'No se pudo verificar la sesión. Inténtalo de nuevo más tarde.'
+            : 'No se pudo verificar la sesión.'
+
+      console.error('Error al renovar sesión', getSafeErrorContext(error))
 
       if (errorKind === 'invalid-session') {
         dispatch(onLogOut(errorMessage))
