@@ -6,6 +6,7 @@ import type { UserRole } from '../../router/roles'
 export interface NavigationItem {
   label: string
   to: To
+  end?: boolean
   icon?: IconType
   allowedRoles?: readonly UserRole[]
 }
