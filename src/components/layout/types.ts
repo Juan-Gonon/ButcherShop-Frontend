@@ -42,6 +42,7 @@ export interface HeaderAction {
   icon?: IconType
   onClick: () => void
   ariaLabel?: string
+  variant?: 'primary' | 'secondary'
 }
 
 export interface AppLayoutConfig {
