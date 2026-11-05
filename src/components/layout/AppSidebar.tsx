@@ -1,4 +1,5 @@
-﻿import { NavLink } from 'react-router-dom'
+﻿import type { RefObject } from 'react'
+import { NavLink } from 'react-router-dom'
 import type {
   HeaderContextItem,
   ModuleIdentity,
@@ -6,19 +7,37 @@ import type {
 } from './types'
 
 interface AppSidebarProps {
+  id: string
   module: ModuleIdentity
   navigation: readonly NavigationItem[]
   context?: HeaderContextItem
+  mobileOpen: boolean
+  onNavigate: () => void
+  ref: RefObject<HTMLElement | null>
 }
 
 export const AppSidebar = ({
+  id,
   module,
   navigation,
-  context
+  context,
+  mobileOpen,
+  onNavigate,
+  ref
 }: AppSidebarProps) => (
   <aside
+    id={id}
+    ref={ref}
+    tabIndex={-1}
+    role={mobileOpen ? 'dialog' : undefined}
+    aria-modal={mobileOpen || undefined}
     aria-label={`Navegación de ${module.name}`}
-    className='flex min-h-screen w-64 shrink-0 flex-col justify-between border-r border-neutral/15 bg-bg-light py-4'
+    className={[
+      'fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col justify-between overflow-y-auto border-r border-neutral/15 bg-bg-light py-4 transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:z-auto lg:min-h-screen lg:translate-x-0',
+      mobileOpen
+        ? 'visible translate-x-0'
+        : 'invisible -translate-x-full lg:visible lg:translate-x-0'
+    ].join(' ')}
   >
     <div className='flex flex-col gap-5'>
       <div className='flex items-center gap-3 px-4'>
@@ -71,6 +90,7 @@ export const AppSidebar = ({
                 <NavLink
                   to={item.to}
                   end={item.end ?? true}
+                  onClick={onNavigate}
                   className={({ isActive }) =>
                     [
                       'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',

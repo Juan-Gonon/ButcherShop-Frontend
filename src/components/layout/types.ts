@@ -47,6 +47,7 @@ export interface HeaderAction {
 
 export interface AppLayoutConfig {
   module: ModuleIdentity
+  sidebarContext?: HeaderContextItem
   navigation: readonly NavigationItem[]
   header: HeaderInfo
   headerActions?: readonly HeaderAction[]

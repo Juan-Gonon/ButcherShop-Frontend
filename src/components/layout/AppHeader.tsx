@@ -1,17 +1,40 @@
-﻿import { LuUserRound } from 'react-icons/lu'
+﻿import type { RefObject } from 'react'
+import { LuMenu, LuUserRound } from 'react-icons/lu'
 import type { HeaderAction, HeaderInfo } from './types'
 
 interface AppHeaderProps {
   info: HeaderInfo
   actions?: readonly HeaderAction[]
+  isMenuOpen: boolean
+  onMenuToggle: () => void
+  menuControlsId: string
+  menuButtonRef: RefObject<HTMLButtonElement | null>
 }
 
-export const AppHeader = ({ info, actions = [] }: AppHeaderProps) => (
+export const AppHeader = ({
+  info,
+  actions = [],
+  isMenuOpen,
+  onMenuToggle,
+  menuControlsId,
+  menuButtonRef
+}: AppHeaderProps) => (
   <header
     aria-label='Encabezado de la aplicación'
-    className='flex min-h-16 w-full min-w-0 items-center justify-between gap-4 border-b border-neutral/15 bg-bg-light/90 px-4 py-3 shadow-sm backdrop-blur-xl sm:px-6'
+    className='sticky top-0 z-30 flex min-h-16 w-full min-w-0 items-center justify-between gap-4 border-b border-neutral/15 bg-bg-light/90 px-4 py-3 shadow-sm backdrop-blur-xl sm:px-6'
   >
-    <div className='flex min-w-0 flex-1 flex-wrap items-center gap-x-5 gap-y-2'>
+    <div className='flex min-w-0 flex-1 flex-wrap items-center gap-3 sm:gap-x-5 sm:gap-y-2'>
+      <button
+        ref={menuButtonRef}
+        type='button'
+        aria-label={isMenuOpen ? 'Cerrar navegación' : 'Abrir navegación'}
+        aria-expanded={isMenuOpen}
+        aria-controls={menuControlsId}
+        onClick={onMenuToggle}
+        className='inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-neutral transition-colors hover:bg-tertiary/50 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 lg:hidden'
+      >
+        <LuMenu aria-hidden='true' className='h-5 w-5' />
+      </button>
       <div className='min-w-0'>
         <h1 className='truncate text-sm font-semibold tracking-tight text-stone-900'>
           {info.title}
