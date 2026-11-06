@@ -1,8 +1,9 @@
-import { Outlet } from 'react-router-dom'
+﻿import { AppLayout } from '../components/layout/AppLayout'
+import { useAuthStore } from '../store/hooks/useAuthStore'
+import { getCarniceriaLayoutConfig } from './config/carniceriaLayoutConfig'
 
-export const CarniceriaLayout = () => (
-  <div>
-    <h1 className='p-6 text-2xl font-semibold'>Carnicería</h1>
-    <Outlet />
-  </div>
-)
+export const CarniceriaLayout = () => {
+  const { user } = useAuthStore()
+
+  return <AppLayout config={getCarniceriaLayoutConfig(user)} />
+}

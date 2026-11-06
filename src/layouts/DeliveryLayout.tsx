@@ -1,8 +1,9 @@
-import { Outlet } from 'react-router-dom'
+﻿import { AppLayout } from '../components/layout/AppLayout'
+import { useAuthStore } from '../store/hooks/useAuthStore'
+import { getDeliveryLayoutConfig } from './config/deliveryLayoutConfig'
 
-export const DeliveryLayout = () => (
-  <div>
-    <h1 className='p-6 text-2xl font-semibold'>Reparto</h1>
-    <Outlet />
-  </div>
-)
+export const DeliveryLayout = () => {
+  const { user } = useAuthStore()
+
+  return <AppLayout config={getDeliveryLayoutConfig(user)} />
+}
