@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/hooks/useAuthStore'
 import { LoginPage } from '../page/LoginPage'
 import { NavigationMessagePage } from '../page/NavigationMessagePage'
 import { NavigationPlaceholderPage } from '../page/NavigationPlaceholderPage'
+import { CarniceriaDashboardPage } from '../page/CarniceriaDashboardPage'
 import { CarniceriaLayout } from '../layouts/CarniceriaLayout'
 import { DeliveryLayout } from '../layouts/DeliveryLayout'
 import { SuperAdminLayout } from '../layouts/SuperAdminLayout'
@@ -80,7 +81,7 @@ export const AppRouter = () => {
             index
             element={
               <RequireRoles allowedRoles={ROLE_2_ONLY}>
-                <NavigationPlaceholderPage title='Inicio de carnicería' />
+                <CarniceriaDashboardPage />
               </RequireRoles>
             }
           />
