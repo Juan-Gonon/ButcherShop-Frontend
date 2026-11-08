@@ -6,12 +6,13 @@ import type {
 } from '../types/dashboard'
 
 export const getDashboardSummary = async (
-  params: DashboardSummaryParams
+  params: DashboardSummaryParams,
+  signal?: AbortSignal
 ): Promise<DashboardSummaryData> => {
-  const response = await api.get<DashboardSummaryResponse>(
-    '/api/reports/summary',
-    { params }
-  )
+  const response = await api.get<DashboardSummaryResponse>('/reports/summary', {
+    params,
+    signal
+  })
 
   return response.data.data
 }
