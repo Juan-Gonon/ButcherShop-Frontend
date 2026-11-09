@@ -3,6 +3,7 @@ import { DashboardMetrics } from '../features/dashboard/components/DashboardMetr
 import { useDashboardMetrics } from '../features/dashboard/hooks/useDashboardMetrics'
 import { VolumeDispatchWidget } from '../features/dashboard/components/VolumeDispatchWidget'
 import { CommercialAnalysisWidget } from '../features/dashboard/components/CommercialAnalysisWidget'
+import { LiveOrdersWidget } from '../features/dashboard/components/LiveOrdersWidget'
 import { useAuthStore } from '../store/hooks/useAuthStore'
 
 export const CarniceriaDashboardPage = () => {
@@ -38,6 +39,7 @@ export const CarniceriaDashboardPage = () => {
             status={status}
           />
         </section>
+        <LiveOrdersWidget />
       </div>
     </main>
   )
