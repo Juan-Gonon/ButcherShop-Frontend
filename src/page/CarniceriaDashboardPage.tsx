@@ -2,6 +2,7 @@ import { DashboardHeader } from '../features/dashboard/components/DashboardHeade
 import { DashboardMetrics } from '../features/dashboard/components/DashboardMetrics'
 import { useDashboardMetrics } from '../features/dashboard/hooks/useDashboardMetrics'
 import { VolumeDispatchWidget } from '../features/dashboard/components/VolumeDispatchWidget'
+import { CommercialAnalysisWidget } from '../features/dashboard/components/CommercialAnalysisWidget'
 import { useAuthStore } from '../store/hooks/useAuthStore'
 
 export const CarniceriaDashboardPage = () => {
@@ -28,8 +29,14 @@ export const CarniceriaDashboardPage = () => {
             <DashboardMetrics data={data} error={error} onRetry={retry} status={status} />
           </section>
         </div>
-        <section aria-label='Volumen y despacho' className='mt-4 grid grid-cols-1 gap-4 lg:grid-cols-12'>
+        <section aria-label='Volumen y análisis comercial' className='mt-4 grid grid-cols-1 gap-4 lg:grid-cols-12'>
           <VolumeDispatchWidget />
+          <CommercialAnalysisWidget
+            error={error}
+            onRetry={retry}
+            product={data?.producto_estrella ?? null}
+            status={status}
+          />
         </section>
       </div>
     </main>
