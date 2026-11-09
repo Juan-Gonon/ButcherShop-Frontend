@@ -1,6 +1,7 @@
 import { DashboardHeader } from '../features/dashboard/components/DashboardHeader'
 import { DashboardMetrics } from '../features/dashboard/components/DashboardMetrics'
 import { useDashboardMetrics } from '../features/dashboard/hooks/useDashboardMetrics'
+import { VolumeDispatchWidget } from '../features/dashboard/components/VolumeDispatchWidget'
 import { useAuthStore } from '../store/hooks/useAuthStore'
 
 export const CarniceriaDashboardPage = () => {
@@ -27,6 +28,9 @@ export const CarniceriaDashboardPage = () => {
             <DashboardMetrics data={data} error={error} onRetry={retry} status={status} />
           </section>
         </div>
+        <section aria-label='Volumen y despacho' className='mt-4 grid grid-cols-1 gap-4 lg:grid-cols-12'>
+          <VolumeDispatchWidget />
+        </section>
       </div>
     </main>
   )
