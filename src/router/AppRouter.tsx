@@ -6,6 +6,7 @@ import { LoginPage } from '../page/LoginPage'
 import { NavigationMessagePage } from '../page/NavigationMessagePage'
 import { NavigationPlaceholderPage } from '../page/NavigationPlaceholderPage'
 import { CarniceriaDashboardPage } from '../page/CarniceriaDashboardPage'
+import { PosPage } from '../page/PosPage'
 import { CarniceriaLayout } from '../layouts/CarniceriaLayout'
 import { DeliveryLayout } from '../layouts/DeliveryLayout'
 import { SuperAdminLayout } from '../layouts/SuperAdminLayout'
@@ -89,7 +90,7 @@ export const AppRouter = () => {
             path='pos'
             element={
               <RequireRoles allowedRoles={CARNICERIA_POS_ROLES}>
-                <NavigationPlaceholderPage title='Punto de venta' />
+                <PosPage />
               </RequireRoles>
             }
           />
