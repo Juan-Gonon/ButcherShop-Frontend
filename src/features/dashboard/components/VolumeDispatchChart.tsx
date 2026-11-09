@@ -13,11 +13,35 @@ interface ValueLabelProps {
   y?: number
   width?: number
   height?: number
+  cantidad?: unknown
+  porcentaje?: unknown
+  value?: unknown
   payload?: unknown
 }
 
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  typeof value === 'object' && value !== null ? value as Record<string, unknown> : null
+
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value)
+
 const ValueLabel = ({ entry, unit }: { entry: ValueLabelProps; unit: VolumeDispatchUnit }) => {
-  const item = entry.payload as VolumeDispatchItem
+  const payload = asRecord(entry.payload)
+  const payloadData = asRecord(payload?.payload)
+  const value = asRecord(entry.value)
+  const valueData = asRecord(value?.payload)
+  const candidates = [entry, payload, payloadData, value, valueData]
+  const quantity = candidates.find((candidate) => isFiniteNumber(candidate?.cantidad))?.cantidad
+  const percentage = candidates.find((candidate) => isFiniteNumber(candidate?.porcentaje))?.porcentaje
+    ?? (isFiniteNumber(entry.value) ? entry.value : undefined)
+
+  if (!isFiniteNumber(quantity) && !isFiniteNumber(percentage)) return null
+
+  const label = [
+    isFiniteNumber(quantity) ? `${formatQuantity(quantity)} ${unit}` : null,
+    isFiniteNumber(percentage) ? `${formatQuantity(percentage)}%` : null
+  ].filter(Boolean).join(' · ')
+
   return (
     <text
       dominantBaseline='middle'
@@ -28,7 +52,7 @@ const ValueLabel = ({ entry, unit }: { entry: ValueLabelProps; unit: VolumeDispa
       x={(entry.x ?? 0) + (entry.width ?? 0) + 8}
       y={(entry.y ?? 0) + (entry.height ?? 0) / 2}
     >
-      {`${formatQuantity(item.cantidad)} ${unit} · ${formatQuantity(item.porcentaje)}%`}
+      {label}
     </text>
   )
 }
