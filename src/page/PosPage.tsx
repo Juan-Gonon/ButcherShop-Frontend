@@ -1,9 +1,45 @@
+import { useState } from 'react'
 import { LuShoppingCart } from 'react-icons/lu'
+import { USER_ROLES } from '../router/roles'
 import { ConsumerFinalCard } from '../features/pos/components/ConsumerFinalCard'
+import { ClientSearchPanel } from '../features/pos/components/ClientSearchPanel'
+import { useClientSearch } from '../features/pos/hooks/useClientSearch'
 import { useConsumerFinal } from '../features/pos/hooks/useConsumerFinal'
+import type { ClientSearchResult } from '../features/pos/types/clientSearch'
+import { useAuthStore } from '../store/hooks/useAuthStore'
 
 export const PosPage = () => {
-  const { data, status, error, retry } = useConsumerFinal()
+  const consumerFinalQuery = useConsumerFinal()
+  const clientSearch = useClientSearch()
+  const { user } = useAuthStore()
+  const [selectedOtherClient, setSelectedOtherClient] =
+    useState<ClientSearchResult | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  const isConsumerFinalSelected = selectedOtherClient === null
+  const selectedClient = selectedOtherClient ?? consumerFinalQuery.data
+  const canSearchClients =
+    user?.id_rol === USER_ROLES.CARNICERIA_ADMIN ||
+    user?.id_rol === USER_ROLES.OPERADOR
+
+  const selectOtherClient = (client: ClientSearchResult) => {
+    setSelectedOtherClient(client)
+    setSearchOpen(false)
+    clientSearch.setQuery('')
+  }
+
+  const selectConsumerFinal = () => {
+    setSelectedOtherClient(null)
+    setSearchOpen(false)
+    clientSearch.setQuery('')
+  }
+
+  const toggleClientSearch = () => {
+    if (searchOpen) {
+      clientSearch.setQuery('')
+    }
+    setSearchOpen(!searchOpen)
+  }
 
   return (
     <div className='min-h-full bg-bg-light/40 p-2.5 sm:p-3.5 lg:p-4'>
@@ -26,10 +62,27 @@ export const PosPage = () => {
         </header>
 
         <ConsumerFinalCard
-          consumerFinal={data}
-          status={status}
-          error={error}
-          onRetry={retry}
+          consumerFinal={consumerFinalQuery.data}
+          selectedClient={selectedClient}
+          isConsumerFinalSelected={isConsumerFinalSelected}
+          canSearchClients={canSearchClients}
+          onSearchToggle={toggleClientSearch}
+          onSelectConsumerFinal={selectConsumerFinal}
+          searchOpen={searchOpen}
+          searchPanel={
+            <ClientSearchPanel
+              query={clientSearch.query}
+              onQueryChange={clientSearch.setQuery}
+              clients={clientSearch.clients}
+              status={clientSearch.status}
+              error={clientSearch.error}
+              onRetry={clientSearch.retry}
+              onSelect={selectOtherClient}
+            />
+          }
+          status={consumerFinalQuery.status}
+          error={consumerFinalQuery.error}
+          onRetry={consumerFinalQuery.retry}
         />
 
         <section
