@@ -32,10 +32,10 @@ export const ShippingSectorSelector = ({
     <section
       aria-labelledby='shipping-sector-title'
       aria-live='polite'
-      className='rounded-2xl border border-white/80 bg-white/80 p-4 shadow-[0_4px_20px_-2px_rgba(92,77,60,0.06)] backdrop-blur-sm sm:p-5'
+      className='h-full rounded-2xl border border-white/80 bg-white/80 p-4 shadow-[0_4px_20px_-2px_rgba(92,77,60,0.06)] backdrop-blur-sm'
     >
-      <div className='flex items-start gap-3'>
-        <span className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary'>
+      <div className='flex items-start gap-2.5'>
+        <span className='flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary'>
           <LuMapPin aria-hidden='true' className='h-5 w-5' />
         </span>
         <div className='min-w-0 flex-1'>

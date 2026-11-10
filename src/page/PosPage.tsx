@@ -68,38 +68,44 @@ export const PosPage = () => {
           </div>
         </header>
 
-        <ConsumerFinalCard
-          consumerFinal={consumerFinalQuery.data}
-          selectedClient={selectedClient}
-          isConsumerFinalSelected={isConsumerFinalSelected}
-          canSearchClients={canSearchClients}
-          onSearchToggle={toggleClientSearch}
-          onSelectConsumerFinal={selectConsumerFinal}
-          searchOpen={searchOpen}
-          searchPanel={
-            <ClientSearchPanel
-              query={clientSearch.query}
-              onQueryChange={clientSearch.setQuery}
-              clients={clientSearch.clients}
-              status={clientSearch.status}
-              error={clientSearch.error}
-              onRetry={clientSearch.retry}
-              onSelect={selectOtherClient}
+        <div className='grid grid-cols-1 gap-4 md:grid-cols-12 md:items-stretch'>
+          <div className='min-w-0 md:col-span-7'>
+            <ConsumerFinalCard
+              consumerFinal={consumerFinalQuery.data}
+              selectedClient={selectedClient}
+              isConsumerFinalSelected={isConsumerFinalSelected}
+              canSearchClients={canSearchClients}
+              onSearchToggle={toggleClientSearch}
+              onSelectConsumerFinal={selectConsumerFinal}
+              searchOpen={searchOpen}
+              searchPanel={
+                <ClientSearchPanel
+                  query={clientSearch.query}
+                  onQueryChange={clientSearch.setQuery}
+                  clients={clientSearch.clients}
+                  status={clientSearch.status}
+                  error={clientSearch.error}
+                  onRetry={clientSearch.retry}
+                  onSelect={selectOtherClient}
+                />
+              }
+              status={consumerFinalQuery.status}
+              error={consumerFinalQuery.error}
+              onRetry={consumerFinalQuery.retry}
             />
-          }
-          status={consumerFinalQuery.status}
-          error={consumerFinalQuery.error}
-          onRetry={consumerFinalQuery.retry}
-        />
+          </div>
 
-        <ShippingSectorSelector
-          sectors={shippingSectors.data}
-          selectedSector={selectedShippingSector}
-          status={shippingSectors.status}
-          error={shippingSectors.error}
-          onSelect={setSelectedShippingSector}
-          onRetry={shippingSectors.retry}
-        />
+          <div className='min-w-0 md:col-span-5'>
+            <ShippingSectorSelector
+              sectors={shippingSectors.data}
+              selectedSector={selectedShippingSector}
+              status={shippingSectors.status}
+              error={shippingSectors.error}
+              onSelect={setSelectedShippingSector}
+              onRetry={shippingSectors.retry}
+            />
+          </div>
+        </div>
 
         <section
           aria-label='Pedido actual'
