@@ -11,6 +11,7 @@ interface ShippingSectorSelectorProps {
   selectedSector: ShippingSectorSelection
   status: 'loading' | 'error' | 'empty' | 'success' | 'forbidden'
   error: string | null
+  selectionError: string | null
   onSelect: (sector: ShippingSectorSelection) => void
   onRetry: () => void
 }
@@ -20,6 +21,7 @@ export const ShippingSectorSelector = ({
   selectedSector,
   status,
   error,
+  selectionError,
   onSelect,
   onRetry
 }: ShippingSectorSelectorProps) => {
@@ -97,6 +99,12 @@ export const ShippingSectorSelector = ({
                   </option>
                 ))}
               </select>
+
+              {selectionError && (
+                <p className='text-sm text-amber-800' role='alert'>
+                  {selectionError}
+                </p>
+              )}
 
               {selectedSector && (
                 <div className='flex flex-col gap-2 rounded-xl border border-secondary/20 bg-secondary/5 p-3 sm:flex-row sm:items-center sm:justify-between'>

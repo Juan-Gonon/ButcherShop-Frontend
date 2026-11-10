@@ -3,12 +3,15 @@ import { USER_ROLES } from '../router/roles'
 import { LuShoppingCart } from 'react-icons/lu'
 import { ConsumerFinalCard } from '../features/pos/components/ConsumerFinalCard'
 import { ClientSearchPanel } from '../features/pos/components/ClientSearchPanel'
+import { DeliveryModeSelector } from '../features/pos/components/DeliveryModeSelector'
 import { ShippingSectorSelector } from '../features/pos/components/ShippingSectorSelector'
 import { useClientSearch } from '../features/pos/hooks/useClientSearch'
 import { useConsumerFinal } from '../features/pos/hooks/useConsumerFinal'
 import { useShippingAddresses } from '../features/pos/hooks/useShippingAddresses'
 import type { ClientSearchResult } from '../features/pos/types/clientSearch'
+import type { DeliveryMode } from '../features/pos/types/delivery'
 import type { ShippingSectorSelection } from '../features/pos/types/shippingSector'
+import { buildDeliveryPayload } from '../features/pos/utils/buildDeliveryPayload'
 import { useAuthStore } from '../store/hooks/useAuthStore'
 
 export const PosPage = () => {
@@ -19,6 +22,8 @@ export const PosPage = () => {
     useState<ClientSearchResult | null>(null)
   const [selectedShippingSector, setSelectedShippingSector] =
     useState<ShippingSectorSelection>(null)
+  const [deliveryMode, setDeliveryMode] =
+    useState<DeliveryMode>('storePickup')
   const [searchOpen, setSearchOpen] = useState(false)
 
   const isConsumerFinalSelected = selectedOtherClient === null
@@ -28,6 +33,25 @@ export const PosPage = () => {
     user?.id_rol === USER_ROLES.OPERADOR
   const canLoadShippingSectors = canSearchClients
   const shippingSectors = useShippingAddresses(canLoadShippingSectors)
+  const deliveryPayload = buildDeliveryPayload(
+    deliveryMode,
+    selectedShippingSector
+  )
+
+  const changeDeliveryMode = (mode: DeliveryMode) => {
+    setDeliveryMode(mode)
+    if (mode === 'storePickup') {
+      setSelectedShippingSector(null)
+    }
+  }
+
+  const getDeliveryValidationMessage = () => {
+    if (deliveryPayload.valid) return null
+    if (deliveryPayload.reason === 'sector-required') {
+      return 'Selecciona un sector para completar la entrega a domicilio.'
+    }
+    return 'El identificador del sector de envío no es válido.'
+  }
 
   const selectOtherClient = (client: ClientSearchResult) => {
     setSelectedOtherClient(client)
@@ -68,7 +92,7 @@ export const PosPage = () => {
           </div>
         </header>
 
-        <div className='grid grid-cols-1 gap-4 md:grid-cols-12 md:items-stretch'>
+        <div className='grid grid-cols-1 gap-4 md:grid-cols-12 md:items-start'>
           <div className='min-w-0 md:col-span-7'>
             <ConsumerFinalCard
               consumerFinal={consumerFinalQuery.data}
@@ -95,15 +119,22 @@ export const PosPage = () => {
             />
           </div>
 
-          <div className='min-w-0 md:col-span-5'>
-            <ShippingSectorSelector
-              sectors={shippingSectors.data}
-              selectedSector={selectedShippingSector}
-              status={shippingSectors.status}
-              error={shippingSectors.error}
-              onSelect={setSelectedShippingSector}
-              onRetry={shippingSectors.retry}
+          <div className='flex min-w-0 flex-col gap-4 md:col-span-5'>
+            <DeliveryModeSelector
+              mode={deliveryMode}
+              onChange={changeDeliveryMode}
             />
+            {deliveryMode === 'homeDelivery' && (
+              <ShippingSectorSelector
+                sectors={shippingSectors.data}
+                selectedSector={selectedShippingSector}
+                status={shippingSectors.status}
+                error={shippingSectors.error}
+                selectionError={getDeliveryValidationMessage()}
+                onSelect={setSelectedShippingSector}
+                onRetry={shippingSectors.retry}
+              />
+            )}
           </div>
         </div>
 
