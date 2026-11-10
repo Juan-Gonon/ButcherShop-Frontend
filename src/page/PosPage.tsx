@@ -11,11 +11,18 @@ import {
 } from '../features/pos/components/ShippingSectorSelector'
 import { useClientSearch } from '../features/pos/hooks/useClientSearch'
 import { useConsumerFinal } from '../features/pos/hooks/useConsumerFinal'
+import { useProductCatalog } from '../features/pos/hooks/useProductCatalog'
 import { useShippingAddresses } from '../features/pos/hooks/useShippingAddresses'
 import type { ClientSearchResult } from '../features/pos/types/clientSearch'
 import type { DeliveryMode } from '../features/pos/types/delivery'
+import type {
+  ButcheryProduct,
+  ProductCategoryFilter
+} from '../features/pos/types/productCatalog'
 import type { ShippingSectorSelection } from '../features/pos/types/shippingSector'
 import { buildDeliveryPayload } from '../features/pos/utils/buildDeliveryPayload'
+import { ProductCatalogToolbar } from '../features/pos/components/ProductCatalogToolbar'
+import { ProductGrid } from '../features/pos/components/ProductGrid'
 import { useAuthStore } from '../store/hooks/useAuthStore'
 
 export const PosPage = () => {
@@ -30,7 +37,10 @@ export const PosPage = () => {
     useState<DeliveryMode>('storePickup')
   const [sectorSelectorOpen, setSectorSelectorOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [productCategory, setProductCategory] =
+    useState<ProductCategoryFilter>('all')
   const deliveryModeAnchorRef = useRef<HTMLDivElement | null>(null)
+  const productCatalog = useProductCatalog()
 
   const isConsumerFinalSelected = selectedOtherClient === null
   const selectedClient = selectedOtherClient ?? consumerFinalQuery.data
@@ -88,6 +98,11 @@ export const PosPage = () => {
       clientSearch.setQuery('')
     }
     setSearchOpen(!searchOpen)
+  }
+
+  const handleProductAdd = (product: ButcheryProduct) => {
+    // Temporary callback: connect the product configuration modal in a later stage.
+    void product
   }
 
   return (
@@ -179,12 +194,36 @@ export const PosPage = () => {
           </FloatingSectorPanel>
         )}
 
-        <section
-          aria-label='Pedido actual'
-          className='rounded-2xl border border-dashed border-neutral/25 bg-white/40 p-6 text-center text-sm text-neutral sm:p-8'
-        >
+        <div className='grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-12'>
+          <section aria-labelledby='product-catalog-title' className='min-w-0 rounded-2xl border border-white/80 bg-[#fbf2e9]/70 p-3 sm:p-5 xl:col-span-8'>
+            <div className='mb-4 flex items-center justify-between gap-3'>
+              <h2 id='product-catalog-title' className='text-lg font-semibold tracking-tight text-neutral sm:text-xl'>
+              Catálogo de productos
+              </h2>
+            </div>
+            <div className='mb-4'>
+              <ProductCatalogToolbar
+                selectedCategory={productCategory}
+                onCategoryChange={setProductCategory}
+              />
+            </div>
+            <ProductGrid
+              products={productCatalog.data}
+              status={productCatalog.status}
+              error={productCatalog.error}
+              category={productCategory}
+              onAdd={handleProductAdd}
+              onRetry={productCatalog.retry}
+            />
+          </section>
+
+          <section
+            aria-label='Pedido actual'
+            className='rounded-2xl border border-dashed border-neutral/25 bg-white/40 p-6 text-center text-sm text-neutral sm:p-8 xl:col-span-4'
+          >
           El pedido actual aparecerá aquí.
-        </section>
+          </section>
+        </div>
       </div>
     </div>
   )
