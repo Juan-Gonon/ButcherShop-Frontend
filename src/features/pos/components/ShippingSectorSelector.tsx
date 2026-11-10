@@ -16,6 +16,38 @@ interface ShippingSectorSelectorProps {
   onRetry: () => void
 }
 
+interface ShippingSectorSummaryProps {
+  sector: ShippingSector
+  onChange: () => void
+}
+
+export const ShippingSectorSummary = ({ sector, onChange }: ShippingSectorSummaryProps) => (
+  <section
+    aria-label='Sector de envío seleccionado'
+    className='flex flex-col gap-3 rounded-2xl border border-white/80 bg-white/80 p-4 shadow-[0_4px_20px_-2px_rgba(92,77,60,0.06)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between'
+  >
+    <div className='min-w-0'>
+      <p className='text-xs font-medium uppercase tracking-wider text-neutral'>
+        Sector de envío
+      </p>
+      <p className='mt-1 truncate text-sm font-semibold text-neutral'>
+        {sector.nombre_sector}
+      </p>
+      <p className='mt-0.5 text-sm text-neutral'>
+        Costo de envío: {sector.costo_envio}
+      </p>
+    </div>
+    <Button
+      type='button'
+      variant='outline'
+      onClick={onChange}
+      className='w-full py-2.5 sm:w-auto'
+    >
+      Cambiar sector
+    </Button>
+  </section>
+)
+
 export const ShippingSectorSelector = ({
   sectors,
   selectedSector,

@@ -1,10 +1,14 @@
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { USER_ROLES } from '../router/roles'
 import { LuShoppingCart } from 'react-icons/lu'
 import { ConsumerFinalCard } from '../features/pos/components/ConsumerFinalCard'
 import { ClientSearchPanel } from '../features/pos/components/ClientSearchPanel'
 import { DeliveryModeSelector } from '../features/pos/components/DeliveryModeSelector'
-import { ShippingSectorSelector } from '../features/pos/components/ShippingSectorSelector'
+import { FloatingSectorPanel } from '../features/pos/components/FloatingSectorPanel'
+import {
+  ShippingSectorSelector,
+  ShippingSectorSummary
+} from '../features/pos/components/ShippingSectorSelector'
 import { useClientSearch } from '../features/pos/hooks/useClientSearch'
 import { useConsumerFinal } from '../features/pos/hooks/useConsumerFinal'
 import { useShippingAddresses } from '../features/pos/hooks/useShippingAddresses'
@@ -24,7 +28,9 @@ export const PosPage = () => {
     useState<ShippingSectorSelection>(null)
   const [deliveryMode, setDeliveryMode] =
     useState<DeliveryMode>('storePickup')
+  const [sectorSelectorOpen, setSectorSelectorOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const deliveryModeAnchorRef = useRef<HTMLDivElement | null>(null)
 
   const isConsumerFinalSelected = selectedOtherClient === null
   const selectedClient = selectedOtherClient ?? consumerFinalQuery.data
@@ -42,7 +48,19 @@ export const PosPage = () => {
     setDeliveryMode(mode)
     if (mode === 'storePickup') {
       setSelectedShippingSector(null)
+      setSectorSelectorOpen(false)
+    } else if (!selectedShippingSector) {
+      setSectorSelectorOpen(true)
     }
+  }
+
+  const closeSectorSelector = useCallback(() => {
+    setSectorSelectorOpen(false)
+  }, [])
+
+  const selectShippingSector = (sector: ShippingSectorSelection) => {
+    setSelectedShippingSector(sector)
+    setSectorSelectorOpen(false)
   }
 
   const getDeliveryValidationMessage = () => {
@@ -120,23 +138,46 @@ export const PosPage = () => {
           </div>
 
           <div className='flex min-w-0 flex-col gap-4 md:col-span-5'>
-            <DeliveryModeSelector
-              mode={deliveryMode}
-              onChange={changeDeliveryMode}
-            />
-            {deliveryMode === 'homeDelivery' && (
-              <ShippingSectorSelector
-                sectors={shippingSectors.data}
-                selectedSector={selectedShippingSector}
-                status={shippingSectors.status}
-                error={shippingSectors.error}
-                selectionError={getDeliveryValidationMessage()}
-                onSelect={setSelectedShippingSector}
-                onRetry={shippingSectors.retry}
+            <div ref={deliveryModeAnchorRef} className='relative'>
+              <DeliveryModeSelector
+                mode={deliveryMode}
+                onChange={changeDeliveryMode}
               />
+            </div>
+            {deliveryMode === 'homeDelivery' && selectedShippingSector && (
+              <ShippingSectorSummary
+                sector={selectedShippingSector}
+                onChange={() => setSectorSelectorOpen(true)}
+              />
+            )}
+            {deliveryMode === 'homeDelivery' && !selectedShippingSector && !sectorSelectorOpen && (
+              <button
+                type='button'
+                onClick={() => setSectorSelectorOpen(true)}
+                className='rounded-xl border border-dashed border-primary/30 bg-white/60 px-4 py-3 text-sm font-medium text-primary transition hover:bg-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/30'
+              >
+                Seleccionar sector de envío
+              </button>
             )}
           </div>
         </div>
+
+        {deliveryMode === 'homeDelivery' && sectorSelectorOpen && (
+          <FloatingSectorPanel
+            anchorRef={deliveryModeAnchorRef}
+            onClose={closeSectorSelector}
+          >
+            <ShippingSectorSelector
+              sectors={shippingSectors.data}
+              selectedSector={selectedShippingSector}
+              status={shippingSectors.status}
+              error={shippingSectors.error}
+              selectionError={getDeliveryValidationMessage()}
+              onSelect={selectShippingSector}
+              onRetry={shippingSectors.retry}
+            />
+          </FloatingSectorPanel>
+        )}
 
         <section
           aria-label='Pedido actual'
