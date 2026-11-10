@@ -1,11 +1,14 @@
 import { useState } from 'react'
-import { LuShoppingCart } from 'react-icons/lu'
 import { USER_ROLES } from '../router/roles'
+import { LuShoppingCart } from 'react-icons/lu'
 import { ConsumerFinalCard } from '../features/pos/components/ConsumerFinalCard'
 import { ClientSearchPanel } from '../features/pos/components/ClientSearchPanel'
+import { ShippingSectorSelector } from '../features/pos/components/ShippingSectorSelector'
 import { useClientSearch } from '../features/pos/hooks/useClientSearch'
 import { useConsumerFinal } from '../features/pos/hooks/useConsumerFinal'
+import { useShippingAddresses } from '../features/pos/hooks/useShippingAddresses'
 import type { ClientSearchResult } from '../features/pos/types/clientSearch'
+import type { ShippingSectorSelection } from '../features/pos/types/shippingSector'
 import { useAuthStore } from '../store/hooks/useAuthStore'
 
 export const PosPage = () => {
@@ -14,6 +17,8 @@ export const PosPage = () => {
   const { user } = useAuthStore()
   const [selectedOtherClient, setSelectedOtherClient] =
     useState<ClientSearchResult | null>(null)
+  const [selectedShippingSector, setSelectedShippingSector] =
+    useState<ShippingSectorSelection>(null)
   const [searchOpen, setSearchOpen] = useState(false)
 
   const isConsumerFinalSelected = selectedOtherClient === null
@@ -21,6 +26,8 @@ export const PosPage = () => {
   const canSearchClients =
     user?.id_rol === USER_ROLES.CARNICERIA_ADMIN ||
     user?.id_rol === USER_ROLES.OPERADOR
+  const canLoadShippingSectors = canSearchClients
+  const shippingSectors = useShippingAddresses(canLoadShippingSectors)
 
   const selectOtherClient = (client: ClientSearchResult) => {
     setSelectedOtherClient(client)
@@ -83,6 +90,15 @@ export const PosPage = () => {
           status={consumerFinalQuery.status}
           error={consumerFinalQuery.error}
           onRetry={consumerFinalQuery.retry}
+        />
+
+        <ShippingSectorSelector
+          sectors={shippingSectors.data}
+          selectedSector={selectedShippingSector}
+          status={shippingSectors.status}
+          error={shippingSectors.error}
+          onSelect={setSelectedShippingSector}
+          onRetry={shippingSectors.retry}
         />
 
         <section
