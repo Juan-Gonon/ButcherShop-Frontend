@@ -11,10 +11,12 @@ import {
 } from '../features/pos/components/ShippingSectorSelector'
 import { useClientSearch } from '../features/pos/hooks/useClientSearch'
 import { useConsumerFinal } from '../features/pos/hooks/useConsumerFinal'
+import { usePreparations } from '../features/pos/hooks/usePreparations'
 import { useProductCatalog } from '../features/pos/hooks/useProductCatalog'
 import { useShippingAddresses } from '../features/pos/hooks/useShippingAddresses'
 import type { ClientSearchResult } from '../features/pos/types/clientSearch'
 import type { DeliveryMode } from '../features/pos/types/delivery'
+import type { ConfiguredProduct } from '../features/pos/types/productConfiguration'
 import type {
   ButcheryProduct,
   ProductCategoryFilter
@@ -23,6 +25,7 @@ import type { ShippingSectorSelection } from '../features/pos/types/shippingSect
 import { buildDeliveryPayload } from '../features/pos/utils/buildDeliveryPayload'
 import { ProductCatalogToolbar } from '../features/pos/components/ProductCatalogToolbar'
 import { ProductGrid } from '../features/pos/components/ProductGrid'
+import { ProductConfigurationModal } from '../features/pos/components/ProductConfigurationModal'
 import { useAuthStore } from '../store/hooks/useAuthStore'
 
 export const PosPage = () => {
@@ -39,8 +42,16 @@ export const PosPage = () => {
   const [searchOpen, setSearchOpen] = useState(false)
   const [productCategory, setProductCategory] =
     useState<ProductCategoryFilter>('all')
+  const [productToConfigure, setProductToConfigure] =
+    useState<ButcheryProduct | null>(null)
+  const [productConfigurationSession, setProductConfigurationSession] =
+    useState(0)
   const deliveryModeAnchorRef = useRef<HTMLDivElement | null>(null)
   const productCatalog = useProductCatalog()
+  const preparations = usePreparations(
+    productToConfigure !== null,
+    productConfigurationSession
+  )
 
   const isConsumerFinalSelected = selectedOtherClient === null
   const selectedClient = selectedOtherClient ?? consumerFinalQuery.data
@@ -101,8 +112,17 @@ export const PosPage = () => {
   }
 
   const handleProductAdd = (product: ButcheryProduct) => {
-    // Temporary callback: connect the product configuration modal in a later stage.
-    void product
+    setProductToConfigure(product)
+    setProductConfigurationSession((session) => session + 1)
+  }
+
+  const closeProductConfiguration = useCallback(() => {
+    setProductToConfigure(null)
+  }, [])
+
+  const handleConfiguredProduct = (configuration: ConfiguredProduct) => {
+    // Temporary integration point: the Redux cart belongs to a later stage.
+    void configuration
   }
 
   return (
@@ -192,6 +212,18 @@ export const PosPage = () => {
               onRetry={shippingSectors.retry}
             />
           </FloatingSectorPanel>
+        )}
+
+        {productToConfigure && (
+          <ProductConfigurationModal
+            product={productToConfigure}
+            preparations={preparations.data}
+            preparationsStatus={preparations.status}
+            preparationsError={preparations.error}
+            onRetryPreparations={preparations.retry}
+            onClose={closeProductConfiguration}
+            onConfirm={handleConfiguredProduct}
+          />
         )}
 
         <div className='grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-12'>
