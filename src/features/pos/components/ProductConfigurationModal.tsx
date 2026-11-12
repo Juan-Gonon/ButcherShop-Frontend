@@ -132,6 +132,7 @@ export const ProductConfigurationModal = ({
       producto: product,
       cantidad: quantity,
       id_tipo_preparacion: selectedPreparation?.id ?? null,
+      nombre_preparacion: selectedPreparation?.nombre ?? null,
       observaciones: observations.trim() || null,
       precio_unitario: product.precio,
       subtotal
@@ -307,7 +308,7 @@ export const ProductConfigurationModal = ({
                         </span>
                           */
                         }
-                  
+
                       </button>
                     )
                   })}
@@ -373,7 +374,7 @@ export const ProductConfigurationModal = ({
           >
             <span className='inline-flex items-center gap-2'>
               <LuPlus aria-hidden='true' className='h-4 w-4' />
-              Confirmar y agregar
+              Confirmar configuración
             </span>
           </Button>
         </footer>

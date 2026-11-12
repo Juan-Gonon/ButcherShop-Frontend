@@ -26,7 +26,10 @@ import { buildDeliveryPayload } from '../features/pos/utils/buildDeliveryPayload
 import { ProductCatalogToolbar } from '../features/pos/components/ProductCatalogToolbar'
 import { ProductGrid } from '../features/pos/components/ProductGrid'
 import { ProductConfigurationModal } from '../features/pos/components/ProductConfigurationModal'
+import { CurrentOrderSummary } from '../features/pos/components/CurrentOrderSummary'
+import { useCart } from '../features/pos/hooks/useCart'
 import { useAuthStore } from '../store/hooks/useAuthStore'
+import type { Preparation } from '../features/pos/types/preparation'
 
 export const PosPage = () => {
   const consumerFinalQuery = useConsumerFinal()
@@ -48,8 +51,9 @@ export const PosPage = () => {
     useState(0)
   const deliveryModeAnchorRef = useRef<HTMLDivElement | null>(null)
   const productCatalog = useProductCatalog()
+  const cart = useCart()
   const preparations = usePreparations(
-    productToConfigure !== null,
+    productToConfigure !== null || cart.lineCount > 0,
     productConfigurationSession
   )
 
@@ -121,8 +125,18 @@ export const PosPage = () => {
   }, [])
 
   const handleConfiguredProduct = (configuration: ConfiguredProduct) => {
-    // Temporary integration point: the Redux cart belongs to a later stage.
-    void configuration
+    cart.addConfiguredProduct(configuration)
+  }
+
+  const handleCartPreparationChange = (
+    lineId: string,
+    preparation: Preparation | null
+  ) => {
+    cart.setLinePreparation({
+      lineId,
+      id_tipo_preparacion: preparation?.id ?? null,
+      nombre_preparacion: preparation?.nombre ?? null
+    })
   }
 
   return (
@@ -249,12 +263,25 @@ export const PosPage = () => {
             />
           </section>
 
-          <section
-            aria-label='Pedido actual'
-            className='rounded-2xl border border-dashed border-neutral/25 bg-white/40 p-6 text-center text-sm text-neutral sm:p-8 xl:col-span-4'
-          >
-          El pedido actual aparecerá aquí.
-          </section>
+          <div className='min-w-0 xl:col-span-4'>
+            <CurrentOrderSummary
+              summary={cart.summary}
+              validationError={cart.validationError}
+              preparations={preparations.data}
+              preparationsStatus={preparations.status}
+              onRetryPreparations={preparations.retry}
+              onClearError={cart.clearCartError}
+              onCancelOrder={cart.clearCart}
+              onQuantityChange={(lineId, cantidad) =>
+                cart.setLineQuantity({ lineId, cantidad })
+              }
+              onPreparationChange={handleCartPreparationChange}
+              onObservationsChange={(lineId, observaciones) =>
+                cart.setLineObservations({ lineId, observaciones })
+              }
+              onRemoveLine={(lineId) => cart.removeCartLine({ lineId })}
+            />
+          </div>
         </div>
       </div>
     </div>
