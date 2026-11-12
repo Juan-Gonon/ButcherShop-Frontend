@@ -1,5 +1,13 @@
 import { useState } from 'react'
-import { LuBeef, LuChevronDown, LuChevronUp, LuMinus, LuPlus, LuTrash2 } from 'react-icons/lu'
+import {
+  LuBeef,
+  LuChevronDown,
+  LuChevronUp,
+  LuMinus,
+  LuPlus,
+  LuStickyNote,
+  LuTrash2
+} from 'react-icons/lu'
 import type { Preparation, PreparationsStatus } from '../types/preparation'
 import type { CartLineSummary } from '../types/cart'
 import { getQuantityStep } from '../utils/productQuantity'
@@ -76,7 +84,7 @@ export const CartLineItem = ({
   }
 
   return (
-    <article className='min-w-0 rounded-xl border border-stone-100 bg-white p-3 shadow-sm transition-shadow sm:p-4'>
+    <article className='min-w-0 rounded-xl border border-stone-100 bg-white p-3 shadow-sm transition-shadow'>
       <div className='flex min-w-0 gap-3'>
         <div className='flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#f6ece3] text-primary/40 sm:h-16 sm:w-16'>
           {line.producto.producto_catalogo.imagen_url && !imageFailed ? (
@@ -103,15 +111,6 @@ export const CartLineItem = ({
                 {formatCurrency(unitPrice)} / {line.producto.unidad_venta.abreviatura || line.producto.unidad_venta.nombre}
               </p>
             </div>
-            <button
-              type='button'
-              data-cart-remove='true'
-              onClick={() => onRemove(line.lineId)}
-              aria-label={`Eliminar ${line.producto.producto_catalogo.nombre} del pedido`}
-              className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-stone-500 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-300'
-            >
-              <LuTrash2 aria-hidden='true' className='h-4 w-4' />
-            </button>
           </div>
         </div>
       </div>
@@ -122,27 +121,46 @@ export const CartLineItem = ({
             {line.cantidad} {line.producto.unidad_venta.abreviatura || line.producto.unidad_venta.nombre}
           </span>
           <span className='text-sm font-bold text-primary'>{formatCurrency(line.subtotal)}</span>
-          {(line.nombre_preparacion || line.observaciones) && (
-            <span className='inline-flex items-center rounded-full bg-[#f6ece3] px-2 py-0.5 text-[10px] font-medium text-stone-600'>
-              {line.nombre_preparacion && line.observaciones
-                ? 'Preparación · Nota'
-                : line.nombre_preparacion
-                  ? 'Preparación'
-                  : 'Nota'}
+          {line.nombre_preparacion && (
+            <span
+              title={line.nombre_preparacion}
+              className='max-w-28 truncate rounded-full bg-[#f6ece3] px-2 py-0.5 text-[10px] font-medium text-stone-600'
+            >
+              {line.nombre_preparacion}
+            </span>
+          )}
+          {line.observaciones && (
+            <span
+              title={line.observaciones}
+              aria-label='Tiene observaciones'
+              className='inline-flex h-6 w-6 items-center justify-center rounded-full bg-stone-100 text-stone-500'
+            >
+              <LuStickyNote aria-hidden='true' className='h-3.5 w-3.5' />
             </span>
           )}
         </div>
-        <button
-          type='button'
-          aria-expanded={isExpanded}
-          aria-label={`${isExpanded ? 'Contraer' : 'Expandir'} edición de ${line.producto.producto_catalogo.nombre}`}
-          onClick={() => setIsExpanded((expanded) => !expanded)}
-          className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-stone-500 transition hover:bg-stone-100 hover:text-stone-800 focus:outline-none focus:ring-2 focus:ring-primary/30'
-        >
-          {isExpanded
-            ? <LuChevronUp aria-hidden='true' className='h-4 w-4' />
-            : <LuChevronDown aria-hidden='true' className='h-4 w-4' />}
-        </button>
+        <div className='flex shrink-0 items-center gap-1'>
+          <button
+            type='button'
+            data-cart-remove='true'
+            onClick={() => onRemove(line.lineId)}
+            aria-label={`Eliminar ${line.producto.producto_catalogo.nombre} del pedido`}
+            className='flex h-9 w-9 items-center justify-center rounded-lg text-stone-500 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-300'
+          >
+            <LuTrash2 aria-hidden='true' className='h-4 w-4' />
+          </button>
+          <button
+            type='button'
+            aria-expanded={isExpanded}
+            aria-label={`${isExpanded ? 'Contraer' : 'Expandir'} edición de ${line.producto.producto_catalogo.nombre}`}
+            onClick={() => setIsExpanded((expanded) => !expanded)}
+            className='flex h-9 w-9 items-center justify-center rounded-lg text-stone-500 transition hover:bg-stone-100 hover:text-stone-800 focus:outline-none focus:ring-2 focus:ring-primary/30'
+          >
+            {isExpanded
+              ? <LuChevronUp aria-hidden='true' className='h-4 w-4' />
+              : <LuChevronDown aria-hidden='true' className='h-4 w-4' />}
+          </button>
+        </div>
       </div>
 
       <div
@@ -158,7 +176,7 @@ export const CartLineItem = ({
                 value={line.id_tipo_preparacion ?? ''}
                 onChange={(event) => selectPreparation(event.target.value)}
                 disabled={!preparationOptionsAvailable}
-                className='mt-1 block min-h-10 w-full min-w-0 rounded-lg border border-stone-200 bg-stone-50 px-2.5 text-sm font-normal text-stone-800 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60'
+                className='mt-1 block min-h-10 w-full min-w-0 cursor-pointer rounded-lg border border-stone-200 bg-white px-3 text-sm font-medium text-stone-800 shadow-sm outline-none transition hover:border-stone-300 focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60'
               >
                 {line.id_tipo_preparacion && !preparations.some((item) => item.id === line.id_tipo_preparacion) && (
                   <option value={line.id_tipo_preparacion}>
@@ -182,7 +200,7 @@ export const CartLineItem = ({
                   aria-label='Disminuir cantidad'
                   disabled={line.cantidad <= step}
                   onClick={() => changeByStep(-step)}
-                  className='flex h-10 w-9 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-700 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-40'
+                  className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-stone-700 transition hover:border-stone-300 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-40'
                 >
                   <LuMinus aria-hidden='true' className='h-3.5 w-3.5' />
                 </button>
@@ -210,14 +228,14 @@ export const CartLineItem = ({
                     if (event.key === 'Enter') event.currentTarget.blur()
                   }}
                   aria-label={`Cantidad de ${line.producto.producto_catalogo.nombre}`}
-                  className='h-10 w-full min-w-0 rounded-lg border border-stone-200 bg-white px-1 text-center text-sm font-semibold text-stone-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15'
+                  className='h-9 w-full min-w-0 rounded-lg border border-stone-200 bg-white px-1 text-center text-sm font-semibold text-stone-900 shadow-inner outline-none transition placeholder:text-stone-400 focus:border-primary focus:ring-2 focus:ring-primary/15'
                 />
                 <button
                   type='button'
                   aria-label='Aumentar cantidad'
                   disabled={line.cantidad >= 300}
                   onClick={() => changeByStep(step)}
-                  className='flex h-10 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40'
+                  className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary transition hover:bg-primary/15 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-40'
                 >
                   <LuPlus aria-hidden='true' className='h-3.5 w-3.5' />
                 </button>
