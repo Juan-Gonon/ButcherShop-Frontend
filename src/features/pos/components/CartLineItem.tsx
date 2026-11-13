@@ -19,6 +19,7 @@ import {
 
 interface CartLineItemProps {
   line: CartLineSummary
+  isLocked: boolean
   preparations: Preparation[]
   preparationsStatus: PreparationsStatus
   onQuantityChange: (lineId: string, quantity: number) => void
@@ -39,6 +40,7 @@ const formatCurrency = (value: number) =>
 
 export const CartLineItem = ({
   line,
+  isLocked,
   preparations,
   preparationsStatus,
   onQuantityChange,
@@ -144,6 +146,7 @@ export const CartLineItem = ({
             type='button'
             data-cart-remove='true'
             onClick={() => onRemove(line.lineId)}
+            disabled={isLocked}
             aria-label={`Eliminar ${line.producto.producto_catalogo.nombre} del pedido`}
             className='flex h-9 w-9 items-center justify-center rounded-lg text-stone-500 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-300'
           >
@@ -151,6 +154,7 @@ export const CartLineItem = ({
           </button>
           <button
             type='button'
+            disabled={isLocked}
             aria-expanded={isExpanded}
             aria-label={`${isExpanded ? 'Contraer' : 'Expandir'} edición de ${line.producto.producto_catalogo.nombre}`}
             onClick={() => setIsExpanded((expanded) => !expanded)}
@@ -175,7 +179,7 @@ export const CartLineItem = ({
               <select
                 value={line.id_tipo_preparacion ?? ''}
                 onChange={(event) => selectPreparation(event.target.value)}
-                disabled={!preparationOptionsAvailable}
+                disabled={!preparationOptionsAvailable || isLocked}
                 className='mt-1 block min-h-10 w-full min-w-0 cursor-pointer rounded-lg border border-stone-200 bg-white px-3 text-sm font-medium text-stone-800 shadow-sm outline-none transition hover:border-stone-300 focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60'
               >
                 {line.id_tipo_preparacion && !preparations.some((item) => item.id === line.id_tipo_preparacion) && (
@@ -198,7 +202,7 @@ export const CartLineItem = ({
                 <button
                   type='button'
                   aria-label='Disminuir cantidad'
-                  disabled={line.cantidad <= step}
+                  disabled={isLocked || line.cantidad <= step}
                   onClick={() => changeByStep(-step)}
                   className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-stone-700 transition hover:border-stone-300 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-40'
                 >
@@ -206,6 +210,7 @@ export const CartLineItem = ({
                 </button>
                 <input
                   type='number'
+                  disabled={isLocked}
                   inputMode='decimal'
                   min='0'
                   max='300'
@@ -233,7 +238,7 @@ export const CartLineItem = ({
                 <button
                   type='button'
                   aria-label='Aumentar cantidad'
-                  disabled={line.cantidad >= 300}
+                  disabled={isLocked || line.cantidad >= 300}
                   onClick={() => changeByStep(step)}
                   className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 text-primary transition hover:bg-primary/15 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-40'
                 >
@@ -249,6 +254,7 @@ export const CartLineItem = ({
         <label className='min-h-0 block overflow-hidden text-xs font-semibold text-stone-600'>
         Observaciones
           <textarea
+            disabled={isLocked}
             value={observationsInput}
             maxLength={255}
             rows={2}

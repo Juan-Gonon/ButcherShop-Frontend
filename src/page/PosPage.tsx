@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { USER_ROLES } from '../router/roles'
 import { LuShoppingCart } from 'react-icons/lu'
 import { ConsumerFinalCard } from '../features/pos/components/ConsumerFinalCard'
@@ -23,11 +23,13 @@ import type {
 } from '../features/pos/types/productCatalog'
 import type { ShippingSectorSelection } from '../features/pos/types/shippingSector'
 import { buildDeliveryPayload } from '../features/pos/utils/buildDeliveryPayload'
+import { buildCreateOrderRequest } from '../features/pos/utils/buildCreateOrderRequest'
 import { ProductCatalogToolbar } from '../features/pos/components/ProductCatalogToolbar'
 import { ProductGrid } from '../features/pos/components/ProductGrid'
 import { ProductConfigurationModal } from '../features/pos/components/ProductConfigurationModal'
 import { CurrentOrderSummary } from '../features/pos/components/CurrentOrderSummary'
 import { useCart } from '../features/pos/hooks/useCart'
+import { useCreateOrder } from '../features/pos/hooks/useCreateOrder'
 import { useAuthStore } from '../store/hooks/useAuthStore'
 import type { Preparation } from '../features/pos/types/preparation'
 
@@ -52,6 +54,8 @@ export const PosPage = () => {
   const deliveryModeAnchorRef = useRef<HTMLDivElement | null>(null)
   const productCatalog = useProductCatalog()
   const cart = useCart()
+  const clearCart = cart.clearCart
+  const orderCreation = useCreateOrder()
   const preparations = usePreparations(
     productToConfigure !== null || cart.lineCount > 0,
     productConfigurationSession
@@ -68,6 +72,32 @@ export const PosPage = () => {
     deliveryMode,
     selectedShippingSector
   )
+  const createOrderRequest = buildCreateOrderRequest({
+    clienteUuid: selectedClient?.uuid,
+    delivery: deliveryPayload,
+    lines: cart.lines
+  })
+  const canCreateOrders =
+    user?.id_rol === USER_ROLES.CARNICERIA_ADMIN ||
+    user?.id_rol === USER_ROLES.OPERADOR
+  const canSubmitOrder =
+    canCreateOrders &&
+    createOrderRequest.valid &&
+    orderCreation.status !== 'submitting' &&
+    orderCreation.status !== 'success' &&
+    orderCreation.status !== 'uncertain'
+
+  const clearedSuccessResponseRef = useRef<object | null>(null)
+
+  useEffect(() => {
+    if (orderCreation.state.status !== 'success') return
+
+    const { response } = orderCreation.state
+    if (clearedSuccessResponseRef.current === response) return
+
+    clearedSuccessResponseRef.current = response
+    clearCart()
+  }, [clearCart, orderCreation.state])
 
   const changeDeliveryMode = (mode: DeliveryMode) => {
     setDeliveryMode(mode)
@@ -116,6 +146,16 @@ export const PosPage = () => {
   }
 
   const handleProductAdd = (product: ButcheryProduct) => {
+    if (
+      orderCreation.status === 'submitting' ||
+      orderCreation.status === 'uncertain'
+    ) {
+      return
+    }
+
+    if (orderCreation.status === 'success' || orderCreation.status === 'error') {
+      orderCreation.reset()
+    }
     setProductToConfigure(product)
     setProductConfigurationSession((session) => session + 1)
   }
@@ -126,6 +166,37 @@ export const PosPage = () => {
 
   const handleConfiguredProduct = (configuration: ConfiguredProduct) => {
     cart.addConfiguredProduct(configuration)
+  }
+
+  const handleConfirmOrder = () => {
+    if (
+      !canCreateOrders ||
+      !createOrderRequest.valid ||
+      orderCreation.status === 'submitting' ||
+      orderCreation.status === 'uncertain' ||
+      orderCreation.status === 'success'
+    ) {
+      return
+    }
+
+    const confirmed = window.confirm(
+      '¿Confirmas el envío de este pedido al backend? El pedido se creará con el cliente, entrega y productos seleccionados.'
+    )
+    if (!confirmed) return
+
+    void orderCreation.submitOrder(createOrderRequest.request)
+  }
+
+  const handleCancelDraft = () => {
+    if (
+      orderCreation.status === 'submitting' ||
+      orderCreation.status === 'uncertain'
+    ) {
+      return
+    }
+
+    cart.clearCart()
+    if (orderCreation.status === 'error') orderCreation.reset()
   }
 
   const handleCartPreparationChange = (
@@ -267,11 +338,19 @@ export const PosPage = () => {
             <CurrentOrderSummary
               summary={cart.summary}
               validationError={cart.validationError}
+              createOrderState={orderCreation.state}
+              canCreateOrder={canCreateOrders}
+              canSubmitOrder={canSubmitOrder}
+              submitValidationError={
+                createOrderRequest.valid ? null : createOrderRequest.error
+              }
+              onConfirmOrder={handleConfirmOrder}
+              onResetCreateOrder={orderCreation.reset}
               preparations={preparations.data}
               preparationsStatus={preparations.status}
               onRetryPreparations={preparations.retry}
               onClearError={cart.clearCartError}
-              onCancelOrder={cart.clearCart}
+              onCancelOrder={handleCancelDraft}
               onQuantityChange={(lineId, cantidad) =>
                 cart.setLineQuantity({ lineId, cantidad })
               }
