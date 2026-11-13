@@ -398,6 +398,7 @@ export const PosPage = () => {
               error={productCatalog.error}
               category={productCategory}
               onAdd={handleProductAdd}
+              isAddDisabled={orderCreation.status === 'submitting' || orderCreation.status === 'uncertain'}
               onRetry={productCatalog.retry}
             />
           </section>

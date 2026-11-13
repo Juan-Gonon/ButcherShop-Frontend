@@ -5,6 +5,7 @@ import type { ButcheryProduct } from '../types/productCatalog'
 interface ProductCardProps {
   product: ButcheryProduct
   onAdd: (product: ButcheryProduct) => void
+  isAddDisabled?: boolean
 }
 
 const formatPrice = (price: string) => {
@@ -18,7 +19,7 @@ const formatPrice = (price: string) => {
   }).format(numericPrice)
 }
 
-export const ProductCard = ({ product, onAdd }: ProductCardProps) => {
+export const ProductCard = ({ product, onAdd, isAddDisabled = false }: ProductCardProps) => {
   const [imageFailed, setImageFailed] = useState(false)
   const { producto_catalogo: catalogProduct } = product
   const unitLabel = product.unidad_venta.abreviatura || product.unidad_venta.nombre
@@ -33,8 +34,9 @@ export const ProductCard = ({ product, onAdd }: ProductCardProps) => {
           <button
             type='button'
             onClick={() => onAdd(product)}
+            disabled={isAddDisabled}
             aria-label={`Configurar ${catalogProduct.nombre}`}
-            className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-sm transition hover:scale-105 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-2'
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-sm transition focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 ${isAddDisabled ? 'cursor-not-allowed opacity-50' : 'hover:scale-105 hover:bg-primary/90'}`}
           >
             <LuPlus aria-hidden='true' className='h-5 w-5' />
           </button>

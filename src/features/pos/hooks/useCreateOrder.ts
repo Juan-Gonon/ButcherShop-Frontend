@@ -26,6 +26,16 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0
 
+const isNonNegativeNumericString = (value: unknown): value is string => {
+  if (!isNonEmptyString(value)) return false
+
+  const normalizedValue = value.trim()
+  const isNumericRepresentation = /^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(normalizedValue)
+  const numericValue = Number(normalizedValue)
+
+  return isNumericRepresentation && Number.isFinite(numericValue) && numericValue >= 0
+}
+
 const isSuccessResponse = (value: unknown): value is CreateOrderSuccessResponse => {
   if (!isRecord(value) || value.ok !== true || !isRecord(value.data)) {
     return false
@@ -35,7 +45,7 @@ const isSuccessResponse = (value: unknown): value is CreateOrderSuccessResponse 
     isNonEmptyString(value.data.message) &&
     isNonEmptyString(value.data.id_pedido) &&
     isNonEmptyString(value.data.uuid) &&
-    isNonEmptyString(value.data.total_cobrado)
+    isNonNegativeNumericString(value.data.total_cobrado)
   )
 }
 

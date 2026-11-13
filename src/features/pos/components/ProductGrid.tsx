@@ -14,6 +14,7 @@ interface ProductGridProps {
   error: string | null
   category: ProductCategoryFilter
   onAdd: (product: ButcheryProduct) => void
+  isAddDisabled?: boolean
   onRetry: () => void
 }
 
@@ -52,6 +53,7 @@ export const ProductGrid = ({
   error,
   category,
   onAdd,
+  isAddDisabled = false,
   onRetry
 }: ProductGridProps) => {
   const availableProducts = useMemo(
@@ -112,7 +114,7 @@ export const ProductGrid = ({
   return (
     <div className='grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 sm:gap-4'>
       {filteredProducts.map((product) => (
-        <ProductCard key={product.uuid} product={product} onAdd={onAdd} />
+        <ProductCard key={product.uuid} product={product} onAdd={onAdd} isAddDisabled={isAddDisabled} />
       ))}
     </div>
   )
