@@ -23,7 +23,6 @@ interface CurrentOrderSummaryProps {
   canSubmitOrder: boolean
   submitValidationError: string | null
   onConfirmOrder: () => void
-  onResetCreateOrder: () => void
   onQuantityChange: (lineId: string, quantity: number) => void
   onPreparationChange: (
     lineId: string,
@@ -53,7 +52,6 @@ export const CurrentOrderSummary = ({
   canSubmitOrder,
   submitValidationError,
   onConfirmOrder,
-  onResetCreateOrder,
   onQuantityChange,
   onPreparationChange,
   onObservationsChange,
@@ -124,14 +122,6 @@ export const CurrentOrderSummary = ({
                 {createOrderState.response.data.message}
               </p>
             </div>
-            <button
-              type='button'
-              onClick={onResetCreateOrder}
-              aria-label='Cerrar confirmación del pedido'
-              className='shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400'
-            >
-            Cerrar
-            </button>
           </div>
           <dl className='mt-3 grid min-w-0 grid-cols-1 gap-2 border-t border-emerald-200 pt-3 text-sm sm:grid-cols-2'>
             <div>
@@ -151,21 +141,6 @@ export const CurrentOrderSummary = ({
               <dd className='break-all font-mono text-xs text-emerald-900'>{createOrderState.response.data.uuid}</dd>
             </div>
           </dl>
-        </div>
-      )}
-
-      {createOrderState.status === 'error' && (
-        <div className='mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3' role='alert'>
-          <LuCircleAlert aria-hidden='true' className='mt-0.5 h-4 w-4 shrink-0 text-red-700' />
-          <p className='min-w-0 flex-1 text-sm text-red-800'>{createOrderState.message}</p>
-          <button
-            type='button'
-            onClick={onResetCreateOrder}
-            aria-label='Cerrar error de creación del pedido'
-            className='shrink-0 text-xs font-semibold text-red-800 underline'
-          >
-          Cerrar
-          </button>
         </div>
       )}
 

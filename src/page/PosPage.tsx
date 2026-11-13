@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Swal from 'sweetalert2'
 import { USER_ROLES } from '../router/roles'
 import { LuShoppingCart } from 'react-icons/lu'
 import { ConsumerFinalCard } from '../features/pos/components/ConsumerFinalCard'
@@ -32,6 +33,31 @@ import { useCart } from '../features/pos/hooks/useCart'
 import { useCreateOrder } from '../features/pos/hooks/useCreateOrder'
 import { useAuthStore } from '../store/hooks/useAuthStore'
 import type { Preparation } from '../features/pos/types/preparation'
+
+const OrderToast = Swal.mixin({
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  showCloseButton: true,
+  timer: 4500,
+  timerProgressBar: true,
+  customClass: {
+    popup: 'rounded-2xl border border-red-100 bg-white shadow-xl',
+    title: 'text-sm font-semibold text-stone-900',
+    htmlContainer: 'text-sm text-stone-600'
+  },
+  didOpen: (toast) => {
+    toast.addEventListener('mouseenter', Swal.stopTimer)
+    toast.addEventListener('mouseleave', Swal.resumeTimer)
+  }
+})
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('es-GT', {
+    style: 'currency',
+    currency: 'GTQ',
+    minimumFractionDigits: 2
+  }).format(value)
 
 export const PosPage = () => {
   const consumerFinalQuery = useConsumerFinal()
@@ -88,6 +114,8 @@ export const PosPage = () => {
     orderCreation.status !== 'uncertain'
 
   const clearedSuccessResponseRef = useRef<object | null>(null)
+  const shownOrderErrorRef = useRef<object | null>(null)
+  const confirmationDialogOpenRef = useRef(false)
 
   useEffect(() => {
     if (orderCreation.state.status !== 'success') return
@@ -98,6 +126,20 @@ export const PosPage = () => {
     clearedSuccessResponseRef.current = response
     clearCart()
   }, [clearCart, orderCreation.state])
+
+  useEffect(() => {
+    if (orderCreation.state.status !== 'error') return
+
+    const errorState = orderCreation.state
+    if (shownOrderErrorRef.current === errorState) return
+
+    shownOrderErrorRef.current = errorState
+    void OrderToast.fire({
+      icon: 'error',
+      title: 'No se pudo crear el pedido',
+      text: errorState.message
+    })
+  }, [orderCreation.state])
 
   const changeDeliveryMode = (mode: DeliveryMode) => {
     setDeliveryMode(mode)
@@ -168,23 +210,49 @@ export const PosPage = () => {
     cart.addConfiguredProduct(configuration)
   }
 
-  const handleConfirmOrder = () => {
+  const handleConfirmOrder = async () => {
     if (
       !canCreateOrders ||
       !createOrderRequest.valid ||
       orderCreation.status === 'submitting' ||
       orderCreation.status === 'uncertain' ||
-      orderCreation.status === 'success'
+      orderCreation.status === 'success' ||
+      confirmationDialogOpenRef.current
     ) {
       return
     }
 
-    const confirmed = window.confirm(
-      '¿Confirmas el envío de este pedido al backend? El pedido se creará con el cliente, entrega y productos seleccionados.'
-    )
-    if (!confirmed) return
+    confirmationDialogOpenRef.current = true
+    try {
+      const deliveryDescription = deliveryMode === 'storePickup'
+        ? 'Recoger en tienda'
+        : `A domicilio${selectedShippingSector ? ` · ${selectedShippingSector.nombre_sector}` : ''}`
+      const confirmation = await Swal.fire({
+        icon: 'question',
+        title: 'Confirmar pedido',
+        text: `Cliente: ${selectedClient?.nombre ?? ''}. Entrega: ${deliveryDescription}. Total actual: ${formatCurrency(cart.total)}.`,
+        showCancelButton: true,
+        confirmButtonText: 'Enviar pedido',
+        cancelButtonText: 'Seguir revisando',
+        reverseButtons: true,
+        focusCancel: true,
+        buttonsStyling: false,
+        customClass: {
+          popup: 'rounded-2xl border border-stone-100 bg-white shadow-2xl',
+          title: 'text-xl font-semibold text-neutral',
+          htmlContainer: 'text-sm leading-6 text-stone-600',
+          actions: 'gap-2',
+          confirmButton: 'rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary/30',
+          cancelButton: 'rounded-xl border border-stone-200 bg-white px-5 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-300'
+        }
+      })
 
-    void orderCreation.submitOrder(createOrderRequest.request)
+      if (!confirmation.isConfirmed) return
+
+      await orderCreation.submitOrder(createOrderRequest.request)
+    } finally {
+      confirmationDialogOpenRef.current = false
+    }
   }
 
   const handleCancelDraft = () => {
@@ -345,7 +413,6 @@ export const PosPage = () => {
                 createOrderRequest.valid ? null : createOrderRequest.error
               }
               onConfirmOrder={handleConfirmOrder}
-              onResetCreateOrder={orderCreation.reset}
               preparations={preparations.data}
               preparationsStatus={preparations.status}
               onRetryPreparations={preparations.retry}
