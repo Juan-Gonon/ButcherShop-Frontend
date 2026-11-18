@@ -25,7 +25,8 @@ export const useKdsOrders = <State extends KdsOrderState>(
   state: State,
   pageSize = 20,
   page = 1,
-  refreshKey = 0
+  refreshKey = 0,
+  onPageCorrection?: (validPage: number) => void
 ) => {
   const [requestVersion, setRequestVersion] = useState(0)
   const [orders, setOrders] = useState<KdsOrderWithState<State>[]>([])
@@ -44,8 +45,19 @@ export const useKdsOrders = <State extends KdsOrderState>(
       .then((response) => {
         if (controller.signal.aborted || activeRequest.current !== requestId) return
 
-        setOrders(response.data.items as KdsOrderWithState<State>[])
-        setPagination(response.data.pagination)
+        const { items, pagination: responsePagination } = response.data
+        if (onPageCorrection && responsePagination.totalPages > 0 && page > responsePagination.totalPages) {
+          onPageCorrection(responsePagination.totalPages)
+          return
+        }
+
+        if (onPageCorrection && responsePagination.totalPages === 0 && items.length === 0 && page > 1) {
+          onPageCorrection(1)
+          return
+        }
+
+        setOrders(items as KdsOrderWithState<State>[])
+        setPagination(responsePagination)
         setQueryState({ requestKey, error: null })
         setSuccessfulQueryCount((count) => count + 1)
       })
@@ -59,7 +71,7 @@ export const useKdsOrders = <State extends KdsOrderState>(
       controller.abort()
       if (activeRequest.current === requestId) activeRequest.current += 1
     }
-  }, [page, pageSize, requestKey, state])
+  }, [onPageCorrection, page, pageSize, requestKey, state])
 
   const refetch = useCallback(() => {
     setRequestVersion((version) => version + 1)

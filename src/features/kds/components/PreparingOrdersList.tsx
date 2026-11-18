@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { FiAlertCircle, FiClipboard, FiRefreshCw } from 'react-icons/fi'
 import { useKdsOrders } from '../hooks/useKdsOrders'
 import { PreparingOrderCard } from './PreparingOrderCard'
@@ -11,11 +11,13 @@ interface PreparingOrdersListProps {
 
 export const PreparingOrdersList = ({ refreshKey }: PreparingOrdersListProps) => {
   const [page, setPage] = useState(1)
+  const correctPage = useCallback((validPage: number) => setPage(validPage), [])
   const { orders, pagination, loading, error, refetch } = useKdsOrders(
     'En preparación',
     PAGE_SIZE,
     page,
-    refreshKey
+    refreshKey,
+    correctPage
   )
 
   return (
