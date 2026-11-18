@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { FiAlertCircle, FiClipboard, FiRefreshCw } from 'react-icons/fi'
 import { useConfirmedOrders } from '../hooks/useConfirmedOrders'
 import { ConfirmedOrderCard } from './ConfirmedOrderCard'
@@ -25,6 +25,15 @@ const LoadingOrders = () => (
 export const ConfirmedOrdersList = () => {
   const [page, setPage] = useState(1)
   const { orders, pagination, loading, error, refetch } = useConfirmedOrders(PAGE_SIZE, page)
+
+  const handlePreparationStarted = () => {
+    if (pagination && page > 1 && page === pagination.totalPages && orders.length === 1) {
+      setPage((currentPage) => Math.max(currentPage - 1, 1))
+      return
+    }
+
+    refetch()
+  }
 
   return (
     <section aria-labelledby='confirmed-orders-title' className='min-w-0'>
@@ -92,7 +101,14 @@ export const ConfirmedOrdersList = () => {
 
       {orders.length > 0 && (
         <div aria-busy={loading} aria-live='polite' className='space-y-3'>
-          {orders.map((order) => <ConfirmedOrderCard key={order.uuid} order={order} />)}
+          {orders.map((order) => (
+            <ConfirmedOrderCard
+              key={order.uuid}
+              onRefreshOrders={refetch}
+              onStartPreparation={handlePreparationStarted}
+              order={order}
+            />
+          ))}
         </div>
       )}
 

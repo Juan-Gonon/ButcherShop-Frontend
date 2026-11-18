@@ -1,8 +1,11 @@
-﻿import { FiClock, FiMapPin, FiPhone, FiShoppingBag } from 'react-icons/fi'
+import { FiClock, FiLoader, FiMapPin, FiPhone, FiShoppingBag } from 'react-icons/fi'
+import { useStartPreparation } from '../hooks/useStartPreparation'
 import type { KdsConfirmedOrder } from '../types/kds'
 
 interface ConfirmedOrderCardProps {
   order: KdsConfirmedOrder
+  onStartPreparation: () => void
+  onRefreshOrders: () => void
 }
 
 const businessDateTime = new Intl.DateTimeFormat('es-GT', {
@@ -39,8 +42,14 @@ const getDeliveryClassName = (deliveryType: KdsConfirmedOrder['tipo_entrega']) =
     ? 'bg-[#ffdec2] text-[#4d2a00]'
     : 'bg-[#b9ebcf] text-[#214f3b]'
 
-export const ConfirmedOrderCard = ({ order }: ConfirmedOrderCardProps) => {
+export const ConfirmedOrderCard = ({ order, onStartPreparation, onRefreshOrders }: ConfirmedOrderCardProps) => {
+  const { startPreparation, loading, error, started } = useStartPreparation()
   const address = getAddressText(order.direccion_envio)
+
+  const handleStartPreparation = async () => {
+    const succeeded = await startPreparation(order.uuid)
+    if (succeeded) onStartPreparation()
+  }
 
   return (
     <article className='flex min-w-0 flex-col gap-3 rounded-2xl border border-white/80 bg-white/90 p-4 shadow-sm sm:p-5'>
@@ -119,13 +128,26 @@ export const ConfirmedOrderCard = ({ order }: ConfirmedOrderCardProps) => {
         </span>
       </div>
 
+      {error && (
+        <div className='flex flex-wrap items-center justify-between gap-2' role='alert'>
+          <p className='text-sm font-medium text-primary'>{error}</p>
+          <button
+            className='min-h-9 rounded-lg border border-primary/20 px-3 text-sm font-semibold text-primary transition hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+            onClick={onRefreshOrders}
+            type='button'
+          >
+            Actualizar pedidos
+          </button>
+        </div>
+      )}
       <button
-        className='inline-flex min-h-12 w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white opacity-75 shadow-sm'
-        disabled
-        title='La acción se habilitará en una etapa posterior.'
+        className='inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-65'
+        disabled={loading || started}
+        onClick={handleStartPreparation}
         type='button'
       >
-        Comenzar preparación
+        {loading && <FiLoader aria-hidden='true' className='animate-spin' />}
+        {started ? 'Preparaci\u00F3n iniciada' : loading ? 'Iniciando preparaci\u00F3n...' : 'Comenzar preparaci\u00F3n'}
       </button>
     </article>
   )
