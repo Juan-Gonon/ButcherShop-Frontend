@@ -3,6 +3,13 @@ import type { KdsPreparingOrder } from '../types/kds'
 
 interface PreparingOrderCardProps {
   order: KdsPreparingOrder
+  checkedDetailIds: ReadonlySet<string>
+  progress: {
+    total: number
+    completed: number
+    percentage: number
+  }
+  onToggleDetail: (detailId: string) => void
 }
 
 const businessDateTime = new Intl.DateTimeFormat('es-GT', {

@@ -5,12 +5,21 @@ import { PreparingOrderCard } from './PreparingOrderCard'
 
 const PAGE_SIZE = 20
 
+interface OrderChecklistProgress {
+  total: number
+  completed: number
+  percentage: number
+}
+
+type ChecklistByOrder = Record<string, ReadonlySet<string>>
+
 interface PreparingOrdersListProps {
   refreshKey: number
 }
 
 export const PreparingOrdersList = ({ refreshKey }: PreparingOrdersListProps) => {
   const [page, setPage] = useState(1)
+  const [checklistByOrder, setChecklistByOrder] = useState<ChecklistByOrder>({})
   const correctPage = useCallback((validPage: number) => setPage(validPage), [])
   const { orders, pagination, loading, error, refetch } = useKdsOrders(
     'En preparación',
@@ -19,6 +28,16 @@ export const PreparingOrdersList = ({ refreshKey }: PreparingOrdersListProps) =>
     refreshKey,
     correctPage
   )
+
+  const toggleDetail = useCallback((orderUuid: string, detailId: string) => {
+    setChecklistByOrder((current) => {
+      const completedIds = new Set(current[orderUuid] ?? [])
+      if (completedIds.has(detailId)) completedIds.delete(detailId)
+      else completedIds.add(detailId)
+
+      return { ...current, [orderUuid]: completedIds }
+    })
+  }, [])
 
   return (
     <section aria-labelledby='preparing-orders-title' className='min-w-0'>
@@ -86,7 +105,30 @@ export const PreparingOrdersList = ({ refreshKey }: PreparingOrdersListProps) =>
 
       {orders.length > 0 && (
         <div aria-busy={loading} aria-live='polite' className='space-y-3'>
-          {orders.map((order) => <PreparingOrderCard key={order.uuid} order={order} />)}
+          {orders.map((order) => {
+            const completedDetailIds = new Set(
+              order.detalles
+                .filter((detail) => checklistByOrder[order.uuid]?.has(detail.id_detalle_pedido))
+                .map((detail) => detail.id_detalle_pedido)
+            )
+            const total = order.detalles.length
+            const completed = completedDetailIds.size
+            const progress: OrderChecklistProgress = {
+              total,
+              completed,
+              percentage: total === 0 ? 0 : Math.round((completed / total) * 100)
+            }
+
+            return (
+              <PreparingOrderCard
+                key={order.uuid}
+                checkedDetailIds={completedDetailIds}
+                onToggleDetail={(detailId) => toggleDetail(order.uuid, detailId)}
+                order={order}
+                progress={progress}
+              />
+            )
+          })}
         </div>
       )}
 
