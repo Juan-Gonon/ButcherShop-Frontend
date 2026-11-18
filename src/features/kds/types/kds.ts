@@ -32,7 +32,7 @@ export interface KdsOrderDetail {
   cantidad: string
   precio_unitario: string
   subtotal: string
-  observaciones: string
+  observaciones: string | null
   producto: string
   unidad: string
   preparacion: string | null
@@ -90,4 +90,3 @@ export interface KdsOrderStateTransitionSuccessResponse {
 export type KdsOrderStateTransitionResponse =
   | KdsOrderStateTransitionSuccessResponse
   | KdsApiErrorResponse
-

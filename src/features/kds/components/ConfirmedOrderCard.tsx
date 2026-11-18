@@ -99,7 +99,7 @@ export const ConfirmedOrderCard = ({ order }: ConfirmedOrderCardProps) => {
                     Preparación: {detail.preparacion}
                   </p>
                 )}
-                {detail.observaciones.trim().length > 0 && (
+                {typeof detail.observaciones === 'string' && detail.observaciones.trim().length > 0 && (
                   <p className='mt-1 break-words text-sm text-neutral/75'>
                     {detail.observaciones}
                   </p>
