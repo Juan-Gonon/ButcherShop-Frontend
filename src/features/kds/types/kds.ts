@@ -86,7 +86,7 @@ export interface KdsOrderStateTransitionRequest {
 
 export interface KdsOrderStateTransitionSuccessResponse {
   ok: true
-  data: KdsOrder
+  data: Pick<KdsOrder, 'uuid' | 'estado'>
 }
 
 export type KdsOrderStateTransitionResponse =
