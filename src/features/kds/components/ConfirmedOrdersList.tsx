@@ -40,9 +40,14 @@ export const ConfirmedOrdersList = () => {
           )}
         </div>
         {pagination && pagination.totalPages > 1 && (
-          <p className='text-xs text-neutral/70'>
-            Página {pagination.page} de {pagination.totalPages}
-          </p>
+          <div className='flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral/70'>
+            <p>Página {pagination.page} de {pagination.totalPages}</p>
+            {page !== pagination.page && (loading || error) && (
+              <p aria-live='polite' role={error ? 'alert' : 'status'}>
+                {loading ? `Consultando página ${page}…` : `Falló la consulta de la página ${page}`}
+              </p>
+            )}
+          </div>
         )}
       </header>
 
@@ -53,7 +58,11 @@ export const ConfirmedOrdersList = () => {
           <p className='flex items-start gap-2 text-sm font-medium text-primary'>
             <FiAlertCircle aria-hidden='true' className='mt-0.5 shrink-0' />
             {error}
-            {orders.length > 0 && <span className='font-normal'>Se conservan los resultados anteriores.</span>}
+            {orders.length > 0 && pagination && (
+              <span className='font-normal'>
+                Se muestran resultados conservados de la página {pagination.page}.
+              </span>
+            )}
           </p>
           <button
             className='mt-3 inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60 sm:mt-0'
@@ -69,7 +78,7 @@ export const ConfirmedOrdersList = () => {
 
       {loading && orders.length > 0 && (
         <p aria-live='polite' className='mb-3 text-sm text-neutral/70' role='status'>
-          Actualizando pedidos…
+          Consultando pedidos de la página {page}…
         </p>
       )}
 
@@ -91,8 +100,8 @@ export const ConfirmedOrdersList = () => {
         <nav aria-label='Paginación de pedidos confirmados' className='mt-4 flex items-center justify-between gap-3'>
           <button
             className='min-h-10 rounded-xl border border-[#eadbcd] bg-white px-4 text-sm font-semibold text-neutral transition hover:bg-[#fbf2e9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50'
-            disabled={loading || pagination.page <= 1}
-            onClick={() => setPage(Math.max(pagination.page - 1, 1))}
+            disabled={loading || page <= 1}
+            onClick={() => setPage((currentPage) => Math.max(currentPage - 1, 1))}
             type='button'
           >
             Anterior
@@ -102,8 +111,8 @@ export const ConfirmedOrdersList = () => {
           </span>
           <button
             className='min-h-10 rounded-xl border border-[#eadbcd] bg-white px-4 text-sm font-semibold text-neutral transition hover:bg-[#fbf2e9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50'
-            disabled={loading || pagination.page >= pagination.totalPages}
-            onClick={() => setPage(Math.min(pagination.page + 1, pagination.totalPages))}
+            disabled={loading || page >= pagination.totalPages}
+            onClick={() => setPage((currentPage) => Math.min(currentPage + 1, pagination.totalPages))}
             type='button'
           >
             Siguiente
@@ -113,3 +122,4 @@ export const ConfirmedOrdersList = () => {
     </section>
   )
 }
+
