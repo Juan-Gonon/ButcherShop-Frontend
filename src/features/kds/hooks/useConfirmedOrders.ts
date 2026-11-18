@@ -36,6 +36,7 @@ export const useConfirmedOrders = (pageSize = 20, page = 1) => {
   const [orders, setOrders] = useState<KdsConfirmedOrder[]>([])
   const [pagination, setPagination] = useState<KdsPagination | null>(null)
   const [queryState, setQueryState] = useState<QueryState | null>(null)
+  const [successfulQueryCount, setSuccessfulQueryCount] = useState(0)
   const activeRequest = useRef(0)
   const requestKey = `${page}:${pageSize}:${requestVersion}`
 
@@ -56,6 +57,7 @@ export const useConfirmedOrders = (pageSize = 20, page = 1) => {
         setOrders(response.data.items)
         setPagination(response.data.pagination)
         setQueryState({ requestKey, error: null })
+        setSuccessfulQueryCount((count) => count + 1)
       })
       .catch((requestError: unknown) => {
         if (
@@ -89,6 +91,7 @@ export const useConfirmedOrders = (pageSize = 20, page = 1) => {
   return {
     orders,
     pagination,
+    successfulQueryCount,
     loading: currentQueryState === null,
     error: currentQueryState?.error ?? null,
     refetch

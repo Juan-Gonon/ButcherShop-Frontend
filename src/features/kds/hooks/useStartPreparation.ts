@@ -1,5 +1,5 @@
 import { isAxiosError } from 'axios'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { transitionOrderState } from '../services/kdsService'
 
 const getTransitionErrorMessage = (error: unknown): string => {
@@ -30,6 +30,14 @@ export const useStartPreparation = () => {
   const [error, setError] = useState<string | null>(null)
   const [started, setStarted] = useState(false)
   const requestInFlight = useRef(false)
+  const isMounted = useRef(false)
+
+  useEffect(() => {
+    isMounted.current = true
+    return () => {
+      isMounted.current = false
+    }
+  }, [])
 
   const startPreparation = useCallback(async (uuid: string): Promise<boolean> => {
     if (requestInFlight.current) return false
@@ -43,14 +51,16 @@ export const useStartPreparation = () => {
         estado_actual_esperado: 'Confirmado',
         estado_destino: 'En preparaci\u00F3n'
       })
+      if (!isMounted.current) return false
+
       setStarted(true)
       return true
     } catch (requestError: unknown) {
-      setError(getTransitionErrorMessage(requestError))
+      if (isMounted.current) setError(getTransitionErrorMessage(requestError))
       return false
     } finally {
       requestInFlight.current = false
-      setLoading(false)
+      if (isMounted.current) setLoading(false)
     }
   }, [])
 

@@ -4,7 +4,7 @@ import type { KdsConfirmedOrder } from '../types/kds'
 
 interface ConfirmedOrderCardProps {
   order: KdsConfirmedOrder
-  onStartPreparation: () => void
+  onStartPreparation: (orderId: string) => void
   onRefreshOrders: () => void
 }
 
@@ -48,7 +48,7 @@ export const ConfirmedOrderCard = ({ order, onStartPreparation, onRefreshOrders 
 
   const handleStartPreparation = async () => {
     const succeeded = await startPreparation(order.uuid)
-    if (succeeded) onStartPreparation()
+    if (succeeded) onStartPreparation(order.id_pedido)
   }
 
   return (

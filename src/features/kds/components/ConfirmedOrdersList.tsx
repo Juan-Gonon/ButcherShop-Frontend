@@ -5,6 +5,11 @@ import { ConfirmedOrderCard } from './ConfirmedOrderCard'
 
 const PAGE_SIZE = 20
 
+interface SuccessfulTransitionNotice {
+  orderId: string
+  successfulQueryCount: number
+}
+
 const LoadingOrders = () => (
   <div aria-label='Cargando pedidos confirmados' aria-live='polite' className='space-y-3'>
     {[0, 1, 2].map((item) => (
@@ -24,9 +29,12 @@ const LoadingOrders = () => (
 
 export const ConfirmedOrdersList = () => {
   const [page, setPage] = useState(1)
-  const { orders, pagination, loading, error, refetch } = useConfirmedOrders(PAGE_SIZE, page)
+  const { orders, pagination, successfulQueryCount, loading, error, refetch } = useConfirmedOrders(PAGE_SIZE, page)
+  const [transitionNotice, setTransitionNotice] = useState<SuccessfulTransitionNotice | null>(null)
 
-  const handlePreparationStarted = () => {
+  const handlePreparationStarted = (orderId: string) => {
+    setTransitionNotice({ orderId, successfulQueryCount })
+
     if (pagination && page > 1 && page === pagination.totalPages && orders.length === 1) {
       setPage((currentPage) => Math.max(currentPage - 1, 1))
       return
@@ -62,15 +70,33 @@ export const ConfirmedOrdersList = () => {
 
       {loading && orders.length === 0 && <LoadingOrders />}
 
+      {transitionNotice && transitionNotice.successfulQueryCount === successfulQueryCount && loading && !error && (
+        <p className='mb-3 text-sm font-medium text-secondary' role='status'>
+          {`Pedido #${transitionNotice.orderId} pasó a En preparación. Actualizando el listado...`}
+        </p>
+      )}
+
       {error && (
         <div className='mb-3 rounded-2xl border border-primary/15 bg-primary/5 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4' role='alert'>
           <p className='flex items-start gap-2 text-sm font-medium text-primary'>
             <FiAlertCircle aria-hidden='true' className='mt-0.5 shrink-0' />
-            {error}
-            {orders.length > 0 && pagination && (
-              <span className='font-normal'>
-                Se muestran resultados conservados de la página {pagination.page}.
+            {transitionNotice && transitionNotice.successfulQueryCount === successfulQueryCount ? (
+              <span>
+                {`El pedido #${transitionNotice.orderId} pasó a En preparación, pero no se pudo actualizar el listado. `}
+                {orders.length > 0 && pagination
+                  ? `Se conservan los resultados de la página ${pagination.page}. `
+                  : 'No se pudieron confirmar los datos actuales. '}
+                {error}
               </span>
+            ) : (
+              <>
+                {error}
+                {orders.length > 0 && pagination && (
+                  <span className='font-normal'>
+                    Se muestran resultados conservados de la página {pagination.page}.
+                  </span>
+                )}
+              </>
             )}
           </p>
           <button
