@@ -50,13 +50,14 @@ export interface KdsOrder {
   total: string
   version: number
   cliente: KdsCustomer
-  /** El contrato observado para pedidos confirmados devuelve null. */
+  /** La forma de la dirección no está documentada en este contrato. */
   direccion_envio: unknown
   detalles: KdsOrderDetail[]
 }
 
-export interface KdsConfirmedOrder extends Omit<KdsOrder, 'direccion_envio'> {
-  direccion_envio: null
+export interface KdsConfirmedOrder extends Omit<KdsOrder, 'direccion_envio' | 'estado'> {
+  estado: 'Confirmado'
+  direccion_envio: unknown
 }
 
 export interface KdsApiErrorResponse {
@@ -89,3 +90,4 @@ export interface KdsOrderStateTransitionSuccessResponse {
 export type KdsOrderStateTransitionResponse =
   | KdsOrderStateTransitionSuccessResponse
   | KdsApiErrorResponse
+

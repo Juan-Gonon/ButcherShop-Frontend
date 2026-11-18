@@ -31,13 +31,13 @@ const getRequestErrorMessage = (error: unknown): string => {
   return 'No se pudieron cargar los pedidos confirmados. Intenta de nuevo.'
 }
 
-export const useConfirmedOrders = (pageSize = 20) => {
+export const useConfirmedOrders = (pageSize = 20, page = 1) => {
   const [requestVersion, setRequestVersion] = useState(0)
   const [orders, setOrders] = useState<KdsConfirmedOrder[]>([])
   const [pagination, setPagination] = useState<KdsPagination | null>(null)
   const [queryState, setQueryState] = useState<QueryState | null>(null)
   const activeRequest = useRef(0)
-  const requestKey = `${pageSize}:${requestVersion}`
+  const requestKey = `${page}:${pageSize}:${requestVersion}`
 
   useEffect(() => {
     const controller = new AbortController()
@@ -45,7 +45,7 @@ export const useConfirmedOrders = (pageSize = 20) => {
     activeRequest.current = requestId
 
     getConfirmedOrders(
-      { estado: 'Confirmado', page: 1, pageSize },
+      { estado: 'Confirmado', page, pageSize },
       controller.signal
     )
       .then((response) => {
@@ -78,7 +78,7 @@ export const useConfirmedOrders = (pageSize = 20) => {
         activeRequest.current += 1
       }
     }
-  }, [pageSize, requestKey])
+  }, [page, pageSize, requestKey])
 
   const refetch = useCallback(() => {
     setRequestVersion((version) => version + 1)
@@ -94,3 +94,4 @@ export const useConfirmedOrders = (pageSize = 20) => {
     refetch
   }
 }
+
