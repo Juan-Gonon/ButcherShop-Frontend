@@ -1,18 +1,18 @@
 ﻿import api from '../../../lib/api/api'
 import type {
-  KdsConfirmedOrdersResponse,
-  KdsConfirmedOrdersSuccessResponse,
+  KdsOrdersResponse,
+  KdsOrdersSuccessResponse,
   KdsOrderStateTransitionRequest,
   KdsOrderStateTransitionResponse,
   KdsOrderStateTransitionSuccessResponse,
   KdsOrdersFilters
 } from '../types/kds'
 
-export const getConfirmedOrders = async (
+export const getOrdersByState = async (
   filters: KdsOrdersFilters,
   signal?: AbortSignal
-): Promise<KdsConfirmedOrdersSuccessResponse> => {
-  const response = await api.get<KdsConfirmedOrdersResponse>('/pedidos', {
+): Promise<KdsOrdersSuccessResponse> => {
+  const response = await api.get<KdsOrdersResponse>('/pedidos', {
     params: filters,
     signal
   })

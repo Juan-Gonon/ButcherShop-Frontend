@@ -10,6 +10,10 @@ interface SuccessfulTransitionNotice {
   successfulQueryCount: number
 }
 
+interface ConfirmedOrdersListProps {
+  onPreparationStarted: () => void
+}
+
 const LoadingOrders = () => (
   <div aria-label='Cargando pedidos confirmados' aria-live='polite' className='space-y-3'>
     {[0, 1, 2].map((item) => (
@@ -27,13 +31,14 @@ const LoadingOrders = () => (
   </div>
 )
 
-export const ConfirmedOrdersList = () => {
+export const ConfirmedOrdersList = ({ onPreparationStarted }: ConfirmedOrdersListProps) => {
   const [page, setPage] = useState(1)
   const { orders, pagination, successfulQueryCount, loading, error, refetch } = useConfirmedOrders(PAGE_SIZE, page)
   const [transitionNotice, setTransitionNotice] = useState<SuccessfulTransitionNotice | null>(null)
 
   const handlePreparationStarted = (orderId: string) => {
     setTransitionNotice({ orderId, successfulQueryCount })
+    onPreparationStarted()
 
     if (pagination && page > 1 && page === pagination.totalPages && orders.length === 1) {
       setPage((currentPage) => Math.max(currentPage - 1, 1))

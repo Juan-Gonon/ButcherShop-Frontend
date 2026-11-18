@@ -9,7 +9,7 @@
 export type KdsDeliveryType = 'Recoger en tienda' | 'A domicilio'
 
 export interface KdsOrdersFilters {
-  estado: 'Confirmado'
+  estado: KdsOrderState
   page: number
   pageSize: number
 }
@@ -55,26 +55,28 @@ export interface KdsOrder {
   detalles: KdsOrderDetail[]
 }
 
-export interface KdsConfirmedOrder extends Omit<KdsOrder, 'direccion_envio' | 'estado'> {
-  estado: 'Confirmado'
-  direccion_envio: unknown
+export type KdsOrderWithState<State extends KdsOrderState> = Omit<KdsOrder, 'estado'> & {
+  estado: State
 }
+
+export type KdsConfirmedOrder = KdsOrderWithState<'Confirmado'>
+export type KdsPreparingOrder = KdsOrderWithState<'En preparación'>
 
 export interface KdsApiErrorResponse {
   ok: false
   error: string
 }
 
-export interface KdsConfirmedOrdersSuccessResponse {
+export interface KdsOrdersSuccessResponse {
   ok: true
   data: {
-    items: KdsConfirmedOrder[]
+    items: KdsOrder[]
     pagination: KdsPagination
   }
 }
 
-export type KdsConfirmedOrdersResponse =
-  | KdsConfirmedOrdersSuccessResponse
+export type KdsOrdersResponse =
+  | KdsOrdersSuccessResponse
   | KdsApiErrorResponse
 
 export interface KdsOrderStateTransitionRequest {
