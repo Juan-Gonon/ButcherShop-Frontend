@@ -1,4 +1,4 @@
-// src/router/AppRouter.tsx
+﻿// src/router/AppRouter.tsx
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useAuthStore } from '../store/hooks/useAuthStore'
@@ -7,6 +7,7 @@ import { NavigationMessagePage } from '../page/NavigationMessagePage'
 import { NavigationPlaceholderPage } from '../page/NavigationPlaceholderPage'
 import { CarniceriaDashboardPage } from '../page/CarniceriaDashboardPage'
 import { PosPage } from '../page/PosPage'
+import { KdsPage } from '../features/kds/KdsPage'
 import { CarniceriaLayout } from '../layouts/CarniceriaLayout'
 import { DeliveryLayout } from '../layouts/DeliveryLayout'
 import { SuperAdminLayout } from '../layouts/SuperAdminLayout'
@@ -16,7 +17,7 @@ import {
   NotFoundRoute,
   RequireRoles
 } from './RouteGuards'
-import { CARNICERIA_ROLES, USER_ROLES } from './roles'
+import { CARNICERIA_KDS_ROLES, CARNICERIA_ROLES, USER_ROLES } from './roles'
 
 const ROLE_2_ONLY = [USER_ROLES.CARNICERIA_ADMIN] as const
 const CARNICERIA_POS_ROLES = [
@@ -91,6 +92,14 @@ export const AppRouter = () => {
             element={
               <RequireRoles allowedRoles={CARNICERIA_POS_ROLES}>
                 <PosPage />
+              </RequireRoles>
+            }
+          />
+          <Route
+            path='kds'
+            element={
+              <RequireRoles allowedRoles={CARNICERIA_KDS_ROLES}>
+                <KdsPage />
               </RequireRoles>
             }
           />

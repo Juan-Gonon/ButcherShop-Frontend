@@ -1,4 +1,4 @@
-export const USER_ROLES = {
+﻿export const USER_ROLES = {
   SUPER_ADMIN: '1',
   CARNICERIA_ADMIN: '2',
   OPERADOR: '3',
@@ -12,6 +12,11 @@ export const CARNICERIA_ROLES = [
   USER_ROLES.CARNICERIA_ADMIN,
   USER_ROLES.OPERADOR,
   USER_ROLES.CAJERO
+] as const satisfies readonly UserRole[]
+
+export const CARNICERIA_KDS_ROLES = [
+  USER_ROLES.CARNICERIA_ADMIN,
+  USER_ROLES.OPERADOR
 ] as const satisfies readonly UserRole[]
 
 const INITIAL_PATH_BY_ROLE: Record<UserRole, string> = {

@@ -1,6 +1,7 @@
 ﻿import {
   LuBriefcaseBusiness,
   LuLayoutDashboard,
+  LuClipboardList,
   LuPackage,
   LuScissors,
   LuShoppingCart,
@@ -10,7 +11,7 @@
 import type { UserInfo } from '../../features/auth/types/interface'
 import type { AppLayoutConfig, NavigationItem } from '../../components/layout/types'
 import { filterNavigationByRole } from './filterNavigationByRole'
-import { CARNICERIA_ROLES, getUserRole, USER_ROLES } from '../../router/roles'
+import { CARNICERIA_KDS_ROLES, CARNICERIA_ROLES, getUserRole, USER_ROLES } from '../../router/roles'
 
 const ADMIN_ONLY = [USER_ROLES.CARNICERIA_ADMIN] as const
 
@@ -26,6 +27,12 @@ const CARNICERIA_NAVIGATION: readonly NavigationItem[] = [
     to: '/carniceria/pos',
     icon: LuShoppingCart,
     allowedRoles: CARNICERIA_ROLES
+  },
+  {
+    label: 'Pantalla de Carnicero (KDS)',
+    to: '/carniceria/kds',
+    icon: LuClipboardList,
+    allowedRoles: CARNICERIA_KDS_ROLES
   },
   {
     label: 'Clientes',
@@ -71,4 +78,3 @@ export const getCarniceriaLayoutConfig = (
     }
   }
 }
-
