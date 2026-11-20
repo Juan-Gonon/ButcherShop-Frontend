@@ -20,8 +20,10 @@ export const KdsPage = () => {
   const audioContext = useRef<AudioContext | null>(null)
   const soundEnabledRef = useRef(false)
   const soundInitializationInProgress = useRef(false)
-  const notificationQueue = useRef<KdsOrder[]>([])
+  const notificationQueue = useRef<Array<{ order: KdsOrder; attempts: number }>>([])
   const queuedNotificationUuids = useRef(new Set<string>())
+  const shownNotificationUuids = useRef(new Set<string>())
+  const failedNotificationUuids = useRef(new Set<string>())
   const notificationProcessorRunning = useRef(false)
   const notificationTimer = useRef<number | null>(null)
   const notificationOpen = useRef(false)
@@ -74,10 +76,10 @@ export const KdsPage = () => {
     }
   }, [])
 
-  const toggleSound = useCallback(async () => {
+  const setSoundPreference = useCallback(async (enabled: boolean) => {
     if (soundInitializationInProgress.current) return
 
-    if (soundEnabledRef.current) {
+    if (!enabled) {
       soundEnabledRef.current = false
       setSoundEnabled(false)
       const context = audioContext.current
@@ -86,6 +88,8 @@ export const KdsPage = () => {
       }
       return
     }
+
+    if (soundEnabledRef.current) return
 
     soundInitializationInProgress.current = true
     setSoundInitializing(true)
@@ -116,7 +120,28 @@ export const KdsPage = () => {
   const processNextNotification = useCallback(() => {
     if (notificationProcessorRunning.current || notificationQueue.current.length === 0) return
 
-    if (Swal.isVisible()) {
+    let alertIsVisible: boolean
+    try {
+      alertIsVisible = Swal.isVisible()
+    } catch {
+      const queuedNotification = notificationQueue.current[0]
+      if (queuedNotification && queuedNotification.attempts < 1) {
+        notificationQueue.current[0] = { ...queuedNotification, attempts: queuedNotification.attempts + 1 }
+      } else if (queuedNotification) {
+        notificationQueue.current.shift()
+        queuedNotificationUuids.current.delete(queuedNotification.order.uuid)
+        failedNotificationUuids.current.add(queuedNotification.order.uuid)
+      }
+      if (notificationTimer.current === null) {
+        notificationTimer.current = window.setTimeout(() => {
+          notificationTimer.current = null
+          processNextNotificationRef.current()
+        }, 250)
+      }
+      return
+    }
+
+    if (alertIsVisible) {
       if (notificationTimer.current === null) {
         notificationTimer.current = window.setTimeout(() => {
           notificationTimer.current = null
@@ -126,23 +151,43 @@ export const KdsPage = () => {
       return
     }
 
-    const order = notificationQueue.current.shift()
-    if (!order) return
+    const queuedNotification = notificationQueue.current.shift()
+    if (!queuedNotification) return
 
     notificationProcessorRunning.current = true
     notificationOpen.current = true
-    playNewOrderSound()
-    void Swal.fire({
-      toast: true,
-      position: 'top-end',
-      icon: 'info',
-      title: 'Nuevo pedido confirmado',
-      text: `Pedido #${order.id_pedido}`,
-      showConfirmButton: false,
-      showCloseButton: true,
-      timer: 5000,
-      timerProgressBar: true
-    }).catch(() => undefined).finally(() => {
+    void (async () => {
+      let alertAccepted = false
+      try {
+        const alertResult = Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'info',
+          title: 'Nuevo pedido confirmado',
+          text: `Pedido #${queuedNotification.order.id_pedido}`,
+          showConfirmButton: false,
+          showCloseButton: true,
+          timer: 5000,
+          timerProgressBar: true
+        })
+
+        if (!alertResult || typeof alertResult.then !== 'function') {
+          throw new Error('SweetAlert2 no inició la notificación.')
+        }
+
+        alertAccepted = true
+        shownNotificationUuids.current.add(queuedNotification.order.uuid)
+        playNewOrderSound()
+        await alertResult
+      } catch {
+        if (!alertAccepted && queuedNotification.attempts < 1) {
+          notificationQueue.current.unshift({ ...queuedNotification, attempts: queuedNotification.attempts + 1 })
+        } else if (!alertAccepted) {
+          queuedNotificationUuids.current.delete(queuedNotification.order.uuid)
+          failedNotificationUuids.current.add(queuedNotification.order.uuid)
+        }
+      }
+
       notificationOpen.current = false
       notificationProcessorRunning.current = false
       if (notificationQueue.current.length > 0 && notificationTimer.current === null) {
@@ -151,7 +196,7 @@ export const KdsPage = () => {
           processNextNotificationRef.current()
         }, 250)
       }
-    })
+    })()
   }, [playNewOrderSound])
 
   useEffect(() => {
@@ -160,9 +205,13 @@ export const KdsPage = () => {
 
   const notifyNewOrders = useCallback((orders: KdsOrder[]) => {
     orders.forEach((order) => {
-      if (queuedNotificationUuids.current.has(order.uuid)) return
+      if (
+        queuedNotificationUuids.current.has(order.uuid) ||
+        shownNotificationUuids.current.has(order.uuid) ||
+        failedNotificationUuids.current.has(order.uuid)
+      ) return
       queuedNotificationUuids.current.add(order.uuid)
-      notificationQueue.current.push(order)
+      notificationQueue.current.push({ order, attempts: 0 })
     })
     processNextNotification()
   }, [processNextNotification])
@@ -208,7 +257,13 @@ export const KdsPage = () => {
   useEffect(() => () => {
     if (notificationTimer.current !== null) window.clearTimeout(notificationTimer.current)
     notificationQueue.current = []
-    if (notificationOpen.current && Swal.isVisible()) Swal.close()
+    if (notificationOpen.current) {
+      try {
+        if (Swal.isVisible()) Swal.close()
+      } catch {
+        // Unmount cleanup must not be interrupted by notification UI failures.
+      }
+    }
     if (audioContext.current && audioContext.current.state !== 'closed') {
       void audioContext.current.close().catch(() => undefined)
       audioContext.current = null
@@ -231,19 +286,27 @@ export const KdsPage = () => {
             </h1>
             <p className='mt-1 text-sm text-neutral'>Pedidos confirmados y zona de trabajo.</p>
           </div>
-          <div className='ml-auto flex flex-col items-end gap-1'>
-            <button
-              aria-pressed={soundEnabled}
-              className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:cursor-wait disabled:opacity-70 ${soundEnabled ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-neutral/25 bg-white text-neutral hover:bg-neutral/5'}`}
-              disabled={soundInitializing}
-              onClick={() => { void toggleSound() }}
-              type='button'
-            >
-              <span aria-hidden='true' className={`relative h-5 w-9 rounded-full transition-colors ${soundEnabled ? 'bg-emerald-600' : 'bg-neutral/35'}`}>
-                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${soundEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </span>
-              {soundEnabled ? 'Sonido activado' : 'Sonido desactivado'}
-            </button>
+          <div className='ml-auto flex max-w-full flex-col items-end gap-1'>
+            <div aria-label='Sonido de notificaciones' className='flex max-w-full rounded-xl bg-bg-light/70 p-1' role='group'>
+              <button
+                aria-pressed={!soundEnabled}
+                className={`min-h-9 rounded-lg px-2.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-70 sm:px-3 ${!soundEnabled ? 'bg-white text-primary shadow-[0_2px_8px_rgba(92,77,60,0.12)]' : 'text-neutral hover:bg-white/60 hover:text-primary'}`}
+                disabled={soundInitializing}
+                onClick={() => { void setSoundPreference(false) }}
+                type='button'
+              >
+                Sonido desactivado
+              </button>
+              <button
+                aria-pressed={soundEnabled}
+                className={`min-h-9 rounded-lg px-2.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-70 sm:px-3 ${soundEnabled ? 'bg-white text-primary shadow-[0_2px_8px_rgba(92,77,60,0.12)]' : 'text-neutral hover:bg-white/60 hover:text-primary'}`}
+                disabled={soundInitializing}
+                onClick={() => { void setSoundPreference(true) }}
+                type='button'
+              >
+                Sonido activado
+              </button>
+            </div>
             {soundInitializing && <span className='text-right text-xs text-neutral/70' role='status'>Activando sonido…</span>}
             {soundUnavailable && (
               <span className='max-w-56 text-right text-xs text-primary' role='status'>No se pudo habilitar o reproducir el sonido. Puedes volver a intentarlo.</span>
