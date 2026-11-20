@@ -18,6 +18,7 @@ interface ConfirmedOrdersListProps {
   getObservedOrderUuids: () => ReadonlySet<string>
   onOrdersObserved: (uuids: string[]) => void
   onNewOrders: (orders: KdsOrder[]) => void
+  pollingEnabled: boolean
 }
 
 const LoadingOrders = () => (
@@ -43,7 +44,8 @@ export const ConfirmedOrdersList = ({
   onPollingReady,
   getObservedOrderUuids,
   onOrdersObserved,
-  onNewOrders
+  onNewOrders,
+  pollingEnabled
 }: ConfirmedOrdersListProps) => {
   const [page, setPage] = useState(1)
   const {
@@ -52,6 +54,7 @@ export const ConfirmedOrdersList = ({
     successfulQueryCount,
     successfulPollingQueryCount,
     loading,
+    pollingLoading,
     error,
     refetch,
     pollIfIdle
@@ -106,6 +109,14 @@ export const ConfirmedOrdersList = ({
               {pagination.total}
             </span>
           )}
+          <span
+            aria-label={pollingEnabled
+              ? error ? 'Actualización automática activa; la última consulta tuvo un error' : pollingLoading ? 'Actualización automática consultando' : 'Actualización automática activa'
+              : 'Actualización automática pausada'}
+            className={`h-2.5 w-2.5 shrink-0 rounded-full ${pollingEnabled ? 'animate-pulse bg-emerald-500' : 'bg-neutral/30'}`}
+            title={pollingEnabled ? 'Actualización automática activa' : 'Actualización automática pausada'}
+            role='img'
+          />
         </div>
         {pagination && pagination.totalPages > 1 && (
           <div className='flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral/70'>
@@ -162,7 +173,7 @@ export const ConfirmedOrdersList = ({
         </div>
       )}
 
-      {loading && orders.length > 0 && (
+      {loading && !pollingLoading && orders.length > 0 && (
         <p aria-live='polite' className='mb-3 text-sm text-neutral/70' role='status'>
           Consultando pedidos de la página {page}…
         </p>

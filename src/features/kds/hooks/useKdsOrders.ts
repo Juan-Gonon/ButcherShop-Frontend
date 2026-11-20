@@ -62,6 +62,7 @@ export const useKdsOrders = <State extends KdsOrderState>(
   const [queryState, setQueryState] = useState<QueryState | null>(null)
   const [successfulQueryCount, setSuccessfulQueryCount] = useState(0)
   const [successfulPollingQueryCount, setSuccessfulPollingQueryCount] = useState(0)
+  const [pollingRequestKey, setPollingRequestKey] = useState<string | null>(null)
   const activeRequest = useRef(0)
   const refetchCycle = useRef<RefetchCycle | null>(null)
   const activeQuery = useRef<ActiveQuery | null>(null)
@@ -114,7 +115,10 @@ export const useKdsOrders = <State extends KdsOrderState>(
           if (refetchCycle.current?.targetBaseKey === baseKey) {
             refetchCycle.current.targetBaseKey = correctedBaseKey
           }
-          if (isPollingRequest) pollingTargetBaseKey.current = correctedBaseKey
+          if (isPollingRequest) {
+            pollingTargetBaseKey.current = correctedBaseKey
+            setPollingRequestKey(`${correctedBaseKey}:${requestVersion}`)
+          }
           onPageCorrection(responsePagination.totalPages)
           return
         }
@@ -124,12 +128,18 @@ export const useKdsOrders = <State extends KdsOrderState>(
           if (refetchCycle.current?.targetBaseKey === baseKey) {
             refetchCycle.current.targetBaseKey = correctedBaseKey
           }
-          if (isPollingRequest) pollingTargetBaseKey.current = correctedBaseKey
+          if (isPollingRequest) {
+            pollingTargetBaseKey.current = correctedBaseKey
+            setPollingRequestKey(`${correctedBaseKey}:${requestVersion}`)
+          }
           onPageCorrection(1)
           return
         }
 
-        if (isPollingRequest) pollingTargetBaseKey.current = null
+        if (isPollingRequest) {
+          pollingTargetBaseKey.current = null
+          setPollingRequestKey((current) => current === requestKey ? null : current)
+        }
         setOrders(items as KdsOrderWithState<State>[])
         setPagination(responsePagination)
         setQueryState({ requestKey, error: null })
@@ -140,7 +150,10 @@ export const useKdsOrders = <State extends KdsOrderState>(
       .catch((requestError: unknown) => {
         if (controller.signal.aborted || isCancel(requestError) || activeRequest.current !== requestId) return
         if (activeQuery.current?.requestId === requestId) activeQuery.current = null
-        if (isPollingRequest && pollingTargetBaseKey.current === baseKey) pollingTargetBaseKey.current = null
+        if (isPollingRequest && pollingTargetBaseKey.current === baseKey) {
+          pollingTargetBaseKey.current = null
+          setPollingRequestKey((current) => current === requestKey ? null : current)
+        }
 
         setQueryState({ requestKey, error: getRequestErrorMessage(requestError) })
         if (refetchCycle.current?.targetBaseKey === baseKey) {
@@ -154,7 +167,7 @@ export const useKdsOrders = <State extends KdsOrderState>(
       if (activeQuery.current?.requestId === requestId) activeQuery.current = null
       if (activeRequest.current === requestId) activeRequest.current += 1
     }
-  }, [baseKey, onPageCorrection, page, pageSize, refreshKey, rejectPendingRefetch, requestKey, resolvePendingRefetch, state])
+  }, [baseKey, onPageCorrection, page, pageSize, refreshKey, rejectPendingRefetch, requestKey, requestVersion, resolvePendingRefetch, state])
 
   const refetch = useCallback((): Promise<void> => {
     const promise = new Promise<void>((resolve, reject) => {
@@ -171,6 +184,7 @@ export const useKdsOrders = <State extends KdsOrderState>(
       }
 
       pollingTargetBaseKey.current = null
+      setPollingRequestKey(null)
       const nextCycle: RefetchCycle = { targetBaseKey: baseKey, waiters: [waiter] }
       refetchCycle.current = nextCycle
 
@@ -187,12 +201,18 @@ export const useKdsOrders = <State extends KdsOrderState>(
   }, [baseKey, rejectPendingRefetch])
 
   const pollIfIdle = useCallback((): boolean => {
-    if (refetchCycle.current || activeQuery.current || queryState?.requestKey !== requestKey) return false
+    if (
+      refetchCycle.current ||
+      activeQuery.current ||
+      pollingTargetBaseKey.current === baseKey ||
+      queryState?.requestKey !== requestKey
+    ) return false
 
     pollingTargetBaseKey.current = baseKey
+    setPollingRequestKey(`${baseKey}:${requestVersion + 1}`)
     setRequestVersion((version) => version + 1)
     return true
-  }, [baseKey, queryState, requestKey])
+  }, [baseKey, queryState, requestKey, requestVersion])
 
   const currentQueryState = queryState?.requestKey === requestKey ? queryState : null
 
@@ -202,6 +222,7 @@ export const useKdsOrders = <State extends KdsOrderState>(
     successfulQueryCount,
     successfulPollingQueryCount,
     loading: currentQueryState === null,
+    pollingLoading: pollingRequestKey === requestKey && currentQueryState === null,
     error: currentQueryState?.error ?? null,
     refetch,
     pollIfIdle

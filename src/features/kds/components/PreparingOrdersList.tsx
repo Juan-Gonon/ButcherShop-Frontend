@@ -24,18 +24,20 @@ interface PreparingOrdersListProps {
   refreshConfirmedOrders: () => Promise<void>
   onPollingReady: (poll: (() => boolean) | null) => void
   onOrdersObserved: (uuids: string[]) => void
+  pollingEnabled: boolean
 }
 
 export const PreparingOrdersList = ({
   refreshKey,
   refreshConfirmedOrders,
   onPollingReady,
-  onOrdersObserved
+  onOrdersObserved,
+  pollingEnabled
 }: PreparingOrdersListProps) => {
   const [page, setPage] = useState(1)
   const [checklistByOrder, setChecklistByOrder] = useState<ChecklistByOrder>({})
   const correctPage = useCallback((validPage: number) => setPage(validPage), [])
-  const { orders, pagination, loading, error, refetch, pollIfIdle } = useKdsOrders(
+  const { orders, pagination, loading, pollingLoading, error, refetch, pollIfIdle } = useKdsOrders(
     'En preparación',
     PAGE_SIZE,
     page,
@@ -169,6 +171,14 @@ export const PreparingOrdersList = ({
               {pagination.total}
             </span>
           )}
+          <span
+            aria-label={pollingEnabled
+              ? error ? 'Actualización automática activa; la última consulta tuvo un error' : pollingLoading ? 'Actualización automática consultando' : 'Actualización automática activa'
+              : 'Actualización automática pausada'}
+            className={`h-2.5 w-2.5 shrink-0 rounded-full ${pollingEnabled ? 'animate-pulse bg-emerald-500' : 'bg-neutral/30'}`}
+            title={pollingEnabled ? 'Actualización automática activa' : 'Actualización automática pausada'}
+            role='img'
+          />
         </div>
         {pagination && pagination.totalPages > 1 && (
           <p className='text-xs text-neutral/70'>Página {pagination.page} de {pagination.totalPages}</p>
@@ -209,7 +219,7 @@ export const PreparingOrdersList = ({
         </div>
       )}
 
-      {loading && orders.length > 0 && (
+      {loading && !pollingLoading && orders.length > 0 && (
         <p aria-live='polite' className='mb-3 text-sm text-neutral/70' role='status'>Actualizando pedidos en preparación…</p>
       )}
 

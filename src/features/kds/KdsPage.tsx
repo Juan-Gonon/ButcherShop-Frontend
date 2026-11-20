@@ -9,13 +9,23 @@ const POLLING_INTERVAL_MS = 10_000
 
 export const KdsPage = () => {
   const [preparingRefreshKey, setPreparingRefreshKey] = useState(0)
+  const [pollingEnabled, setPollingEnabled] = useState(true)
   const [soundEnabled, setSoundEnabled] = useState(false)
+  const [soundInitializing, setSoundInitializing] = useState(false)
   const [soundUnavailable, setSoundUnavailable] = useState(false)
   const confirmedOrdersRefetch = useRef<(() => Promise<void>) | null>(null)
   const confirmedOrdersPoll = useRef<(() => boolean) | null>(null)
   const preparingOrdersPoll = useRef<(() => boolean) | null>(null)
   const observedOrderUuids = useRef(new Set<string>())
   const audioContext = useRef<AudioContext | null>(null)
+  const soundEnabledRef = useRef(false)
+  const soundInitializationInProgress = useRef(false)
+  const notificationQueue = useRef<KdsOrder[]>([])
+  const queuedNotificationUuids = useRef(new Set<string>())
+  const notificationProcessorRunning = useRef(false)
+  const notificationTimer = useRef<number | null>(null)
+  const notificationOpen = useRef(false)
+  const processNextNotificationRef = useRef<() => void>(() => undefined)
   const registerConfirmedRefetch = useCallback((refetch: (() => Promise<void>) | null) => {
     confirmedOrdersRefetch.current = refetch
   }, [])
@@ -37,7 +47,13 @@ export const KdsPage = () => {
 
   const playNewOrderSound = useCallback(() => {
     const context = audioContext.current
-    if (!soundEnabled || !context || context.state !== 'running') return
+    if (!soundEnabledRef.current) return
+    if (!context || context.state !== 'running') {
+      soundEnabledRef.current = false
+      setSoundEnabled(false)
+      setSoundUnavailable(true)
+      return
+    }
 
     try {
       const oscillator = context.createOscillator()
@@ -52,60 +68,123 @@ export const KdsPage = () => {
       oscillator.start(startAt)
       oscillator.stop(startAt + 0.16)
     } catch {
-      // Audio is optional; browser restrictions must not interrupt KDS work.
-    }
-  }, [soundEnabled])
-
-  const enableSound = useCallback(async () => {
-    if (audioContext.current?.state === 'running') {
-      setSoundEnabled(true)
-      return
-    }
-
-    let context: AudioContext | null = null
-    try {
-      context = new AudioContext()
-      await context.resume()
-      if (context.state !== 'running') throw new Error('Audio is unavailable')
-      audioContext.current = context
-      setSoundEnabled(true)
-      setSoundUnavailable(false)
-    } catch {
-      if (context) void context.close().catch(() => undefined)
+      soundEnabledRef.current = false
       setSoundEnabled(false)
       setSoundUnavailable(true)
     }
   }, [])
 
-  const notifyNewOrders = useCallback((orders: KdsOrder[]) => {
-    playNewOrderSound()
-    if (Swal.isVisible()) return
+  const toggleSound = useCallback(async () => {
+    if (soundInitializationInProgress.current) return
 
-    const orderNumbers = orders.map((order) => `#${order.id_pedido}`).join(', ')
+    if (soundEnabledRef.current) {
+      soundEnabledRef.current = false
+      setSoundEnabled(false)
+      const context = audioContext.current
+      if (context?.state === 'running') {
+        void context.suspend().catch(() => setSoundUnavailable(true))
+      }
+      return
+    }
+
+    soundInitializationInProgress.current = true
+    setSoundInitializing(true)
+    let context = audioContext.current
+    let createdContext = false
+    try {
+      if (!context || context.state === 'closed') {
+        context = new AudioContext()
+        createdContext = true
+      }
+      await context.resume()
+      if (context.state !== 'running') throw new Error('Audio is unavailable')
+      audioContext.current = context
+      soundEnabledRef.current = true
+      setSoundEnabled(true)
+      setSoundUnavailable(false)
+    } catch {
+      soundEnabledRef.current = false
+      if (createdContext && context) void context.close().catch(() => undefined)
+      setSoundEnabled(false)
+      setSoundUnavailable(true)
+    } finally {
+      soundInitializationInProgress.current = false
+      setSoundInitializing(false)
+    }
+  }, [])
+
+  const processNextNotification = useCallback(() => {
+    if (notificationProcessorRunning.current || notificationQueue.current.length === 0) return
+
+    if (Swal.isVisible()) {
+      if (notificationTimer.current === null) {
+        notificationTimer.current = window.setTimeout(() => {
+          notificationTimer.current = null
+          processNextNotificationRef.current()
+        }, 400)
+      }
+      return
+    }
+
+    const order = notificationQueue.current.shift()
+    if (!order) return
+
+    notificationProcessorRunning.current = true
+    notificationOpen.current = true
+    playNewOrderSound()
     void Swal.fire({
       toast: true,
       position: 'top-end',
       icon: 'info',
-      title: orders.length === 1 ? 'Nuevo pedido confirmado' : 'Nuevos pedidos confirmados',
-      text: `Pedido${orders.length === 1 ? '' : 's'} ${orderNumbers}`,
+      title: 'Nuevo pedido confirmado',
+      text: `Pedido #${order.id_pedido}`,
       showConfirmButton: false,
       showCloseButton: true,
       timer: 5000,
       timerProgressBar: true
+    }).catch(() => undefined).finally(() => {
+      notificationOpen.current = false
+      notificationProcessorRunning.current = false
+      if (notificationQueue.current.length > 0 && notificationTimer.current === null) {
+        notificationTimer.current = window.setTimeout(() => {
+          notificationTimer.current = null
+          processNextNotificationRef.current()
+        }, 250)
+      }
     })
   }, [playNewOrderSound])
+
+  useEffect(() => {
+    processNextNotificationRef.current = processNextNotification
+  }, [processNextNotification])
+
+  const notifyNewOrders = useCallback((orders: KdsOrder[]) => {
+    orders.forEach((order) => {
+      if (queuedNotificationUuids.current.has(order.uuid)) return
+      queuedNotificationUuids.current.add(order.uuid)
+      notificationQueue.current.push(order)
+    })
+    processNextNotification()
+  }, [processNextNotification])
 
   useEffect(() => {
     let intervalId: number | null = null
 
     const stopPolling = () => {
-      if (intervalId === null) return
-      window.clearInterval(intervalId)
-      intervalId = null
+      if (intervalId !== null) {
+        window.clearInterval(intervalId)
+        intervalId = null
+      }
+      setPollingEnabled(false)
     }
 
     const startPolling = () => {
-      if (intervalId !== null || document.visibilityState === 'hidden') return
+      if (document.visibilityState === 'hidden') {
+        setPollingEnabled(false)
+        return
+      }
+      setPollingEnabled(true)
+      if (intervalId !== null) return
       intervalId = window.setInterval(() => {
         confirmedOrdersPoll.current?.()
         preparingOrdersPoll.current?.()
@@ -118,15 +197,18 @@ export const KdsPage = () => {
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
-    startPolling()
+    handleVisibilityChange()
 
     return () => {
-      stopPolling()
+      if (intervalId !== null) window.clearInterval(intervalId)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [])
 
   useEffect(() => () => {
+    if (notificationTimer.current !== null) window.clearTimeout(notificationTimer.current)
+    notificationQueue.current = []
+    if (notificationOpen.current && Swal.isVisible()) Swal.close()
     if (audioContext.current && audioContext.current.state !== 'closed') {
       void audioContext.current.close().catch(() => undefined)
       audioContext.current = null
@@ -152,14 +234,19 @@ export const KdsPage = () => {
           <div className='ml-auto flex flex-col items-end gap-1'>
             <button
               aria-pressed={soundEnabled}
-              className='inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-secondary/25 bg-white px-3 text-sm font-semibold text-secondary transition hover:bg-secondary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary'
-              onClick={() => { void enableSound() }}
+              className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:cursor-wait disabled:opacity-70 ${soundEnabled ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-neutral/25 bg-white text-neutral hover:bg-neutral/5'}`}
+              disabled={soundInitializing}
+              onClick={() => { void toggleSound() }}
               type='button'
             >
-              {soundEnabled ? 'Sonido activado' : 'Activar sonido'}
+              <span aria-hidden='true' className={`relative h-5 w-9 rounded-full transition-colors ${soundEnabled ? 'bg-emerald-600' : 'bg-neutral/35'}`}>
+                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${soundEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              </span>
+              {soundEnabled ? 'Sonido activado' : 'Sonido desactivado'}
             </button>
+            {soundInitializing && <span className='text-right text-xs text-neutral/70' role='status'>Activando sonido…</span>}
             {soundUnavailable && (
-              <span className='text-right text-xs text-neutral/70' role='status'>Sonido no disponible en este navegador.</span>
+              <span className='max-w-56 text-right text-xs text-primary' role='status'>No se pudo habilitar o reproducir el sonido. Puedes volver a intentarlo.</span>
             )}
           </div>
         </header>
@@ -173,6 +260,7 @@ export const KdsPage = () => {
               getObservedOrderUuids={getObservedOrderUuids}
               onOrdersObserved={markOrdersObserved}
               onNewOrders={notifyNewOrders}
+              pollingEnabled={pollingEnabled}
             />
           </div>
           <div className='min-w-0 rounded-2xl border border-white/80 bg-white/75 p-4 shadow-sm sm:p-5 xl:col-span-7'>
@@ -181,6 +269,7 @@ export const KdsPage = () => {
               refreshKey={preparingRefreshKey}
               onPollingReady={registerPreparingPoll}
               onOrdersObserved={markOrdersObserved}
+              pollingEnabled={pollingEnabled}
             />
           </div>
         </div>
