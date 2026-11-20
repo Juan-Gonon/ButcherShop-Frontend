@@ -24,6 +24,13 @@ interface ActiveQuery {
   manual: boolean
 }
 
+interface SuccessfulQuerySnapshot<State extends KdsOrderState> {
+  requestId: number
+  source: 'polling' | 'other'
+  page: number
+  items: KdsOrderWithState<State>[]
+}
+
 const getBaseKey = (state: string, page: number, pageSize: number, refreshKey: number) =>
   `${state}:${page}:${pageSize}:${refreshKey}`
 
@@ -61,7 +68,8 @@ export const useKdsOrders = <State extends KdsOrderState>(
   const [pagination, setPagination] = useState<KdsPagination | null>(null)
   const [queryState, setQueryState] = useState<QueryState | null>(null)
   const [successfulQueryCount, setSuccessfulQueryCount] = useState(0)
-  const [successfulPollingQueryCount, setSuccessfulPollingQueryCount] = useState(0)
+  const [successfulQueryVersion, setSuccessfulQueryVersion] = useState(0)
+  const successfulQueries = useRef<SuccessfulQuerySnapshot<State>[]>([])
   const [pollingRequestKey, setPollingRequestKey] = useState<string | null>(null)
   const activeRequest = useRef(0)
   const refetchCycle = useRef<RefetchCycle | null>(null)
@@ -144,7 +152,13 @@ export const useKdsOrders = <State extends KdsOrderState>(
         setPagination(responsePagination)
         setQueryState({ requestKey, error: null })
         setSuccessfulQueryCount((count) => count + 1)
-        if (isPollingRequest) setSuccessfulPollingQueryCount((count) => count + 1)
+        successfulQueries.current.push({
+          requestId,
+          source: isPollingRequest ? 'polling' : 'other',
+          page,
+          items: items as KdsOrderWithState<State>[]
+        })
+        setSuccessfulQueryVersion((version) => version + 1)
         resolvePendingRefetch(baseKey)
       })
       .catch((requestError: unknown) => {
@@ -214,13 +228,16 @@ export const useKdsOrders = <State extends KdsOrderState>(
     return true
   }, [baseKey, queryState, requestKey, requestVersion])
 
+  const consumeSuccessfulQueries = useCallback(() => successfulQueries.current.splice(0), [])
+
   const currentQueryState = queryState?.requestKey === requestKey ? queryState : null
 
   return {
     orders,
     pagination,
     successfulQueryCount,
-    successfulPollingQueryCount,
+    successfulQueryVersion,
+    consumeSuccessfulQueries,
     loading: currentQueryState === null,
     pollingLoading: pollingRequestKey === requestKey && currentQueryState === null,
     error: currentQueryState?.error ?? null,
