@@ -1,5 +1,6 @@
 import { isAxiosError } from 'axios'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { KdsOrdersRefetchCancelledError } from './useKdsOrders'
 import { transitionOrderState } from '../services/kdsService'
 import type { KdsDeliveryType, KdsPreparingOrder } from '../types/kds'
 
@@ -51,6 +52,12 @@ const getTransitionErrorMessage = (error: unknown): string => {
 }
 
 const getRefreshErrorMessage = (error: unknown, afterConflict = false): string => {
+  if (error instanceof KdsOrdersRefetchCancelledError) {
+    return afterConflict
+      ? 'El conflicto se detectó, pero la consulta anterior se canceló al cambiar de página. Verifica el listado actual.'
+      : 'El pedido se finalizó correctamente, pero la consulta anterior se canceló al cambiar de página. Verifica el listado actual.'
+  }
+
   const reason = error instanceof Error && error.message ? ` ${error.message}` : ''
   const context = afterConflict
     ? 'No se pudo actualizar la lista después del conflicto. Vuelve a consultar los pedidos.'

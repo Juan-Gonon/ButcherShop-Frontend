@@ -8,16 +8,33 @@ interface QueryState {
   error: string | null
 }
 
-interface PendingRefetch {
-  baseKey: string
+interface RefetchWaiter {
   resolve: () => void
   reject: (error: Error) => void
+}
+
+interface RefetchCycle {
+  targetBaseKey: string
+  waiters: RefetchWaiter[]
+}
+
+interface ActiveQuery {
+  baseKey: string
+  requestId: number
+  manual: boolean
 }
 
 const getBaseKey = (state: string, page: number, pageSize: number, refreshKey: number) =>
   `${state}:${page}:${pageSize}:${refreshKey}`
 
-const getCancelledError = (message: string) => new Error(message)
+export class KdsOrdersRefetchCancelledError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'KdsOrdersRefetchCancelledError'
+  }
+}
+
+const getCancelledError = (message: string) => new KdsOrdersRefetchCancelledError(message)
 
 const getRequestErrorMessage = (error: unknown): string => {
   if (isAxiosError<{ error?: unknown }>(error)) {
@@ -45,21 +62,22 @@ export const useKdsOrders = <State extends KdsOrderState>(
   const [queryState, setQueryState] = useState<QueryState | null>(null)
   const [successfulQueryCount, setSuccessfulQueryCount] = useState(0)
   const activeRequest = useRef(0)
-  const pendingRefetch = useRef<PendingRefetch | null>(null)
+  const refetchCycle = useRef<RefetchCycle | null>(null)
+  const activeQuery = useRef<ActiveQuery | null>(null)
   const baseKey = getBaseKey(state, page, pageSize, refreshKey)
   const requestKey = `${baseKey}:${requestVersion}`
   const rejectPendingRefetch = useCallback((error: Error) => {
-    const pending = pendingRefetch.current
-    if (!pending) return
-    pendingRefetch.current = null
-    pending.reject(error)
+    const cycle = refetchCycle.current
+    if (!cycle) return
+    refetchCycle.current = null
+    cycle.waiters.forEach((waiter) => waiter.reject(error))
   }, [])
 
   const resolvePendingRefetch = useCallback((completedBaseKey: string) => {
-    const pending = pendingRefetch.current
-    if (!pending || pending.baseKey !== completedBaseKey) return
-    pendingRefetch.current = null
-    pending.resolve()
+    const cycle = refetchCycle.current
+    if (!cycle || cycle.targetBaseKey !== completedBaseKey) return
+    refetchCycle.current = null
+    cycle.waiters.forEach((waiter) => waiter.resolve())
   }, [])
 
   useEffect(() => () => {
@@ -67,24 +85,30 @@ export const useKdsOrders = <State extends KdsOrderState>(
   }, [rejectPendingRefetch])
 
   useEffect(() => {
-    const pending = pendingRefetch.current
-    if (pending && pending.baseKey !== baseKey) {
+    const cycle = refetchCycle.current
+    if (cycle && cycle.targetBaseKey !== baseKey) {
       rejectPendingRefetch(getCancelledError('La consulta se reemplazó por un cambio de filtros o página.'))
     }
 
     const controller = new AbortController()
     const requestId = activeRequest.current + 1
     activeRequest.current = requestId
+    activeQuery.current = {
+      baseKey,
+      requestId,
+      manual: refetchCycle.current?.targetBaseKey === baseKey
+    }
 
     getOrdersByState({ estado: state, page, pageSize }, controller.signal)
       .then((response) => {
         if (controller.signal.aborted || activeRequest.current !== requestId) return
+        if (activeQuery.current?.requestId === requestId) activeQuery.current = null
 
         const { items, pagination: responsePagination } = response.data
         if (onPageCorrection && responsePagination.totalPages > 0 && page > responsePagination.totalPages) {
           const correctedBaseKey = getBaseKey(state, responsePagination.totalPages, pageSize, refreshKey)
-          if (pendingRefetch.current?.baseKey === baseKey) {
-            pendingRefetch.current.baseKey = correctedBaseKey
+          if (refetchCycle.current?.targetBaseKey === baseKey) {
+            refetchCycle.current.targetBaseKey = correctedBaseKey
           }
           onPageCorrection(responsePagination.totalPages)
           return
@@ -92,8 +116,8 @@ export const useKdsOrders = <State extends KdsOrderState>(
 
         if (onPageCorrection && responsePagination.totalPages === 0 && items.length === 0 && page > 1) {
           const correctedBaseKey = getBaseKey(state, 1, pageSize, refreshKey)
-          if (pendingRefetch.current?.baseKey === baseKey) {
-            pendingRefetch.current.baseKey = correctedBaseKey
+          if (refetchCycle.current?.targetBaseKey === baseKey) {
+            refetchCycle.current.targetBaseKey = correctedBaseKey
           }
           onPageCorrection(1)
           return
@@ -107,29 +131,47 @@ export const useKdsOrders = <State extends KdsOrderState>(
       })
       .catch((requestError: unknown) => {
         if (controller.signal.aborted || isCancel(requestError) || activeRequest.current !== requestId) return
+        if (activeQuery.current?.requestId === requestId) activeQuery.current = null
 
         setQueryState({ requestKey, error: getRequestErrorMessage(requestError) })
-        const pending = pendingRefetch.current
-        if (pending?.baseKey === baseKey) {
+        if (refetchCycle.current?.targetBaseKey === baseKey) {
           rejectPendingRefetch(requestError instanceof Error ? requestError : new Error(getRequestErrorMessage(requestError)))
         }
       })
 
     return () => {
       controller.abort()
+      if (activeQuery.current?.requestId === requestId) activeQuery.current = null
       if (activeRequest.current === requestId) activeRequest.current += 1
     }
   }, [baseKey, onPageCorrection, page, pageSize, refreshKey, rejectPendingRefetch, requestKey, resolvePendingRefetch, state])
 
   const refetch = useCallback((): Promise<void> => {
-    rejectPendingRefetch(getCancelledError('La consulta se reemplazó por una solicitud más reciente.'))
     const promise = new Promise<void>((resolve, reject) => {
-      pendingRefetch.current = { baseKey, resolve, reject }
+      const waiter = { resolve, reject }
+      const currentCycle = refetchCycle.current
+
+      if (currentCycle?.targetBaseKey === baseKey) {
+        currentCycle.waiters.push(waiter)
+        return
+      }
+
+      if (currentCycle) {
+        rejectPendingRefetch(getCancelledError('La consulta se reemplazó por un cambio de filtros o página.'))
+      }
+
+      const nextCycle: RefetchCycle = { targetBaseKey: baseKey, waiters: [waiter] }
+      refetchCycle.current = nextCycle
+
+      // Join an in-flight manual request. An automatic request is invalidated
+      // so a refresh requested after a mutation gets a fresh server response.
+      if (activeQuery.current?.baseKey === baseKey && activeQuery.current.manual) return
+
+      setRequestVersion((version) => version + 1)
     })
     // Mark the rejection as observed for existing fire-and-forget UI handlers;
     // callers that await this promise still receive the rejection.
     void promise.catch(() => undefined)
-    setRequestVersion((version) => version + 1)
     return promise
   }, [baseKey, rejectPendingRefetch])
 
