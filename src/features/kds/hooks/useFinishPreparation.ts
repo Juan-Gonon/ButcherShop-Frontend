@@ -12,7 +12,7 @@ export interface FinishPreparationState {
 
 export type FinishPreparationResult =
   | { status: 'already-in-progress' }
-  | { status: 'transition-failed'; error: string }
+  | { status: 'transition-failed'; error: string; refreshError?: string }
   | { status: 'completed' }
   | { status: 'completed-refresh-failed'; error: string }
   | { status: 'completed-unmounted' }
@@ -35,7 +35,7 @@ const getDestination = (deliveryType: KdsDeliveryType): FinalOrderState => {
 const getTransitionErrorMessage = (error: unknown): string => {
   if (isAxiosError<{ error?: unknown }>(error)) {
     if (error.response?.status === 409) {
-      return 'El pedido pudo haber cambiado de estado o la transición ya no está disponible. Actualiza la lista antes de volver a intentarlo.'
+      return 'El pedido cambió de estado o la transición ya no está disponible.'
     }
 
     const backendMessage = error.response?.data?.error
@@ -50,10 +50,16 @@ const getTransitionErrorMessage = (error: unknown): string => {
   return 'No se pudo finalizar la preparación. Inténtalo de nuevo.'
 }
 
-const getRefreshErrorMessage = (error: unknown): string => {
+const getRefreshErrorMessage = (error: unknown, afterConflict = false): string => {
   const reason = error instanceof Error && error.message ? ` ${error.message}` : ''
-  return `El pedido se finalizó correctamente, pero no se pudo actualizar la lista. Vuelve a consultar los pedidos.${reason}`
+  const context = afterConflict
+    ? 'No se pudo actualizar la lista después del conflicto. Vuelve a consultar los pedidos.'
+    : 'El pedido se finalizó correctamente, pero no se pudo actualizar la lista. Vuelve a consultar los pedidos.'
+  return `${context}${reason}`
 }
+
+const isConflictError = (error: unknown): boolean =>
+  isAxiosError(error) && error.response?.status === 409
 
 export const useFinishPreparation = () => {
   const [stateByOrder, setStateByOrder] = useState<ReadonlyMap<string, FinishPreparationState>>(() => new Map())
@@ -134,13 +140,25 @@ export const useFinishPreparation = () => {
       return { status: 'completed' }
     } catch (transitionError: unknown) {
       const message = getTransitionErrorMessage(transitionError)
+      let refreshError: string | undefined
+
+      if (isConflictError(transitionError) && isCurrentRequest()) {
+        try {
+          await refreshOrders()
+        } catch (requestError: unknown) {
+          refreshError = getRefreshErrorMessage(requestError, true)
+        }
+      }
+
       updateCurrentState({
         loading: false,
         transitionSucceeded: false,
         transitionError: message,
-        refreshError: null
+        refreshError: refreshError ?? null
       })
-      return { status: 'transition-failed', error: message }
+      return refreshError
+        ? { status: 'transition-failed', error: message, refreshError }
+        : { status: 'transition-failed', error: message }
     } finally {
       inFlightOrders.current.delete(order.uuid)
     }
