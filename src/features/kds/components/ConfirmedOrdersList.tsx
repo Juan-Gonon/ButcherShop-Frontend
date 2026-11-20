@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FiAlertCircle, FiClipboard, FiRefreshCw } from 'react-icons/fi'
 import { useConfirmedOrders } from '../hooks/useConfirmedOrders'
 import { ConfirmedOrderCard } from './ConfirmedOrderCard'
@@ -12,6 +12,7 @@ interface SuccessfulTransitionNotice {
 
 interface ConfirmedOrdersListProps {
   onPreparationStarted: () => void
+  onRefetchReady: (refetch: (() => Promise<void>) | null) => void
 }
 
 const LoadingOrders = () => (
@@ -31,10 +32,15 @@ const LoadingOrders = () => (
   </div>
 )
 
-export const ConfirmedOrdersList = ({ onPreparationStarted }: ConfirmedOrdersListProps) => {
+export const ConfirmedOrdersList = ({ onPreparationStarted, onRefetchReady }: ConfirmedOrdersListProps) => {
   const [page, setPage] = useState(1)
   const { orders, pagination, successfulQueryCount, loading, error, refetch } = useConfirmedOrders(PAGE_SIZE, page)
   const [transitionNotice, setTransitionNotice] = useState<SuccessfulTransitionNotice | null>(null)
+
+  useEffect(() => {
+    onRefetchReady(refetch)
+    return () => onRefetchReady(null)
+  }, [onRefetchReady, refetch])
 
   const handlePreparationStarted = (orderId: string) => {
     setTransitionNotice({ orderId, successfulQueryCount })

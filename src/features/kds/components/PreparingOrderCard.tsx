@@ -1,5 +1,8 @@
-import { FiAlertCircle, FiCheck, FiClock, FiLoader, FiShoppingBag } from 'react-icons/fi'
+import { useState } from 'react'
+import Swal from 'sweetalert2'
+import { FiAlertCircle, FiCheck, FiClock, FiCornerUpLeft, FiLoader, FiShoppingBag } from 'react-icons/fi'
 import type { FinishPreparationResult } from '../hooks/useFinishPreparation'
+import type { ReturnToCounterResult } from '../hooks/useReturnToCounter'
 import type { KdsPreparingOrder } from '../types/kds'
 
 interface PreparingOrderCardProps {
@@ -16,6 +19,11 @@ interface PreparingOrderCardProps {
   refreshError: string | null
   transitionSucceeded: boolean
   onFinishPreparation: () => Promise<FinishPreparationResult | null>
+  returnLoading: boolean
+  returnSucceeded: boolean
+  returnTransitionError: string | null
+  returnRefreshError: string | null
+  onReturnToCounter: () => Promise<ReturnToCounterResult>
 }
 
 const businessDateTime = new Intl.DateTimeFormat('es-GT', {
@@ -38,8 +46,14 @@ export const PreparingOrderCard = ({
   transitionError,
   refreshError,
   transitionSucceeded,
-  onFinishPreparation
+  onFinishPreparation,
+  returnLoading,
+  returnSucceeded,
+  returnTransitionError,
+  returnRefreshError,
+  onReturnToCounter
 }: PreparingOrderCardProps) => {
+  const [returnConfirmationOpen, setReturnConfirmationOpen] = useState(false)
   const checklistComplete = progress.total > 0 && progress.completed === progress.total
   const conflictDetected = transitionError?.includes('cambió de estado') ?? false
   const finishLabel = order.tipo_entrega === 'Recoger en tienda'
@@ -50,8 +64,39 @@ export const PreparingOrderCard = ({
     : finishLabel
 
   const handleFinishPreparation = () => {
-    if (!checklistComplete || finishLoading || transitionSucceeded) return
+    if (!checklistComplete || finishLoading || transitionSucceeded || returnLoading || returnSucceeded) return
     void onFinishPreparation()
+  }
+
+  const handleReturnToCounter = async () => {
+    if (returnConfirmationOpen || returnLoading || returnSucceeded || finishLoading || transitionSucceeded) return
+
+    setReturnConfirmationOpen(true)
+    try {
+      const confirmation = await Swal.fire({
+        icon: 'question',
+        title: 'Devolver pedido a mostrador',
+        text: `El pedido #${order.id_pedido} regresará a Confirmado y podrá editarse nuevamente desde mostrador.`,
+        showCancelButton: true,
+        confirmButtonText: 'Devolver a mostrador',
+        cancelButtonText: 'Seguir preparando',
+        reverseButtons: true,
+        focusCancel: true,
+        buttonsStyling: false,
+        customClass: {
+          popup: 'rounded-2xl border border-stone-100 bg-white shadow-2xl',
+          title: 'text-xl font-semibold text-neutral',
+          htmlContainer: 'text-sm leading-6 text-stone-600',
+          actions: 'gap-2',
+          confirmButton: 'rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary/30',
+          cancelButton: 'rounded-xl border border-stone-200 bg-white px-5 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-300'
+        }
+      })
+
+      if (confirmation.isConfirmed) await onReturnToCounter()
+    } finally {
+      setReturnConfirmationOpen(false)
+    }
   }
 
   return (
@@ -113,6 +158,7 @@ export const PreparingOrderCard = ({
                     aria-label={`Preparado: detalle ${index + 1}, ${detail.cantidad} ${detail.unidad} ${detail.producto}`}
                     checked={checkedDetailIds.has(detail.id_detalle_pedido)}
                     className='mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+                    disabled={returnLoading || returnSucceeded}
                     onChange={() => onToggleDetail(detail.id_detalle_pedido)}
                     type='checkbox'
                   />
@@ -148,7 +194,7 @@ export const PreparingOrderCard = ({
         <button
           aria-describedby={!checklistComplete ? `finish-help-${order.uuid}` : undefined}
           className='inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:bg-neutral/30 disabled:text-neutral/65 disabled:shadow-none sm:w-auto'
-          disabled={!checklistComplete || finishLoading || transitionSucceeded}
+          disabled={!checklistComplete || finishLoading || transitionSucceeded || returnLoading || returnSucceeded}
           onClick={handleFinishPreparation}
           type='button'
         >
@@ -191,6 +237,57 @@ export const PreparingOrderCard = ({
           <p className='flex items-start gap-2 text-sm font-medium text-primary' role='alert'>
             <FiAlertCircle aria-hidden='true' className='mt-0.5 shrink-0' />
             <span>{refreshError}</span>
+          </p>
+        )}
+      </div>
+
+      <div className='space-y-2 border-t border-[#eadbcd] pt-3'>
+        <button
+          className='inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-primary/25 bg-white px-4 py-2 text-sm font-semibold text-primary shadow-sm transition hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-55 sm:w-auto'
+          disabled={returnLoading || returnConfirmationOpen || finishLoading || transitionSucceeded || returnSucceeded}
+          onClick={() => { void handleReturnToCounter() }}
+          type='button'
+        >
+          {returnLoading
+            ? <FiLoader aria-hidden='true' className='animate-spin' />
+            : <FiCornerUpLeft aria-hidden='true' />}
+          {returnLoading
+            ? (returnSucceeded ? 'Actualizando listas…' : 'Devolviendo a mostrador…')
+            : returnConfirmationOpen ? 'Confirmando…' : 'Devolver a mostrador'}
+        </button>
+
+        {returnLoading && (
+          <p aria-live='polite' className='text-sm text-neutral/75' role='status'>
+            {returnSucceeded
+              ? 'Pedido devuelto a Confirmado. Actualizando ambas listas…'
+              : 'Procesando devolución a mostrador…'}
+          </p>
+        )}
+
+        {returnSucceeded && returnRefreshError && (
+          <p className='flex items-start gap-2 text-sm font-medium text-primary' role='alert'>
+            <FiAlertCircle aria-hidden='true' className='mt-0.5 shrink-0' />
+            <span>{returnRefreshError}</span>
+          </p>
+        )}
+
+        {returnSucceeded && !returnRefreshError && !returnLoading && (
+          <p className='text-sm font-semibold text-secondary' role='status'>
+            Pedido devuelto a Confirmado. Mostrador puede editarlo nuevamente.
+          </p>
+        )}
+
+        {!returnSucceeded && returnTransitionError && (
+          <p className='flex items-start gap-2 text-sm font-medium text-primary' role='alert'>
+            <FiAlertCircle aria-hidden='true' className='mt-0.5 shrink-0' />
+            <span>{returnTransitionError}</span>
+          </p>
+        )}
+
+        {!returnSucceeded && returnRefreshError && (
+          <p className='flex items-start gap-2 text-sm font-medium text-primary' role='alert'>
+            <FiAlertCircle aria-hidden='true' className='mt-0.5 shrink-0' />
+            <span>{returnRefreshError}</span>
           </p>
         )}
       </div>

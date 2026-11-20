@@ -1,8 +1,12 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import Swal from 'sweetalert2'
 import { FiAlertCircle, FiClipboard, FiRefreshCw } from 'react-icons/fi'
 import { useFinishPreparation } from '../hooks/useFinishPreparation'
 import { useKdsOrders } from '../hooks/useKdsOrders'
+import { useReturnToCounter } from '../hooks/useReturnToCounter'
 import type { FinishPreparationState } from '../hooks/useFinishPreparation'
+import type { KdsPreparingOrder } from '../types/kds'
+import type { ReturnToCounterState } from '../hooks/useReturnToCounter'
 import { PreparingOrderCard } from './PreparingOrderCard'
 
 const PAGE_SIZE = 20
@@ -17,9 +21,10 @@ type ChecklistByOrder = Record<string, ReadonlySet<string>>
 
 interface PreparingOrdersListProps {
   refreshKey: number
+  refreshConfirmedOrders: () => Promise<void>
 }
 
-export const PreparingOrdersList = ({ refreshKey }: PreparingOrdersListProps) => {
+export const PreparingOrdersList = ({ refreshKey, refreshConfirmedOrders }: PreparingOrdersListProps) => {
   const [page, setPage] = useState(1)
   const [checklistByOrder, setChecklistByOrder] = useState<ChecklistByOrder>({})
   const correctPage = useCallback((validPage: number) => setPage(validPage), [])
@@ -30,7 +35,16 @@ export const PreparingOrdersList = ({ refreshKey }: PreparingOrdersListProps) =>
     refreshKey,
     correctPage
   )
-  const { finishPreparation, stateByOrder } = useFinishPreparation()
+  const {
+    finishPreparation,
+    stateByOrder,
+    clearOrderState: clearFinishState
+  } = useFinishPreparation()
+  const {
+    returnToCounter,
+    stateByOrder: returnStateByOrder,
+    clearOrderState: clearReturnState
+  } = useReturnToCounter()
 
   const toggleDetail = useCallback((orderUuid: string, detailId: string) => {
     setChecklistByOrder((current) => {
@@ -41,6 +55,91 @@ export const PreparingOrdersList = ({ refreshKey }: PreparingOrdersListProps) =>
       return { ...current, [orderUuid]: completedIds }
     })
   }, [])
+
+  const refreshBothLists = useCallback(async () => {
+    const [confirmedResult, preparingResult] = await Promise.allSettled([
+      refreshConfirmedOrders(),
+      refetch()
+    ])
+    const failedLists: string[] = []
+    if (confirmedResult.status === 'rejected') failedLists.push('Confirmados')
+    if (preparingResult.status === 'rejected') failedLists.push('En preparación')
+
+    if (failedLists.length > 0) {
+      throw new Error(`No se pudo actualizar la lista: ${failedLists.join(' y ')}.`)
+    }
+  }, [refreshConfirmedOrders, refetch])
+
+  const clearChecklist = useCallback((orderUuid: string) => {
+    setChecklistByOrder((current) => {
+      if (!(orderUuid in current)) return current
+      const next = { ...current }
+      delete next[orderUuid]
+      return next
+    })
+  }, [])
+
+  const handleReturnToCounter = useCallback(async (order: KdsPreparingOrder) => {
+    const result = await returnToCounter(order, refreshBothLists, () => {
+      clearChecklist(order.uuid)
+      clearFinishState(order.uuid)
+      void Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: `Pedido #${order.id_pedido} devuelto a Confirmado`,
+        text: 'Actualizando ambas listas…',
+        showConfirmButton: false,
+        showCloseButton: true,
+        timer: 4000,
+        timerProgressBar: true
+      })
+    })
+
+    if (result.status === 'returned-refresh-failed') {
+      void Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'warning',
+        title: 'Pedido devuelto; falta actualizar las listas',
+        text: result.error,
+        showConfirmButton: false,
+        showCloseButton: true,
+        timer: 6000,
+        timerProgressBar: true
+      })
+    } else if (result.status === 'transition-failed') {
+      const message = result.refreshError
+        ? `${result.error} ${result.refreshError}`
+        : result.error
+      void Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'error',
+        title: 'No se pudo devolver el pedido',
+        text: message,
+        showConfirmButton: false,
+        showCloseButton: true,
+        timer: 6000,
+        timerProgressBar: true
+      })
+    }
+
+    return result
+  },
+  [clearChecklist, clearFinishState, refreshBothLists, returnToCounter])
+
+  useEffect(() => {
+    const visibleOrderUuids = new Set(orders.map((order) => order.uuid))
+
+    for (const [orderUuid, orderState] of stateByOrder) {
+      if (!visibleOrderUuids.has(orderUuid) && !orderState.loading) clearFinishState(orderUuid)
+    }
+
+    for (const [orderUuid, orderState] of returnStateByOrder) {
+      if (!visibleOrderUuids.has(orderUuid) && !orderState.loading) clearReturnState(orderUuid)
+    }
+  }, [clearFinishState, clearReturnState, orders, returnStateByOrder, stateByOrder])
 
   return (
     <section aria-labelledby='preparing-orders-title' className='min-w-0'>
@@ -122,6 +221,7 @@ export const PreparingOrdersList = ({ refreshKey }: PreparingOrdersListProps) =>
               percentage: total === 0 ? 0 : Math.round((completed / total) * 100)
             }
             const finishState: FinishPreparationState | undefined = stateByOrder.get(order.uuid)
+            const returnState: ReturnToCounterState | undefined = returnStateByOrder.get(order.uuid)
 
             return (
               <PreparingOrderCard
@@ -136,6 +236,11 @@ export const PreparingOrdersList = ({ refreshKey }: PreparingOrdersListProps) =>
                 onToggleDetail={(detailId) => toggleDetail(order.uuid, detailId)}
                 order={order}
                 progress={progress}
+                returnLoading={returnState?.loading ?? false}
+                returnSucceeded={returnState?.transitionSucceeded ?? false}
+                returnTransitionError={returnState?.transitionError ?? null}
+                returnRefreshError={returnState?.refreshError ?? null}
+                onReturnToCounter={() => handleReturnToCounter(order)}
                 refreshError={finishState?.refreshError ?? null}
                 transitionError={finishState?.transitionError ?? null}
                 transitionSucceeded={finishState?.transitionSucceeded ?? false}

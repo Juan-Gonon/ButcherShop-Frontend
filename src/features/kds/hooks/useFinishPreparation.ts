@@ -171,5 +171,14 @@ export const useFinishPreparation = () => {
     }
   }, [])
 
-  return { finishPreparation, stateByOrder }
+  const clearOrderState = useCallback((orderUuid: string) => {
+    setStateByOrder((current) => {
+      if (!current.has(orderUuid)) return current
+      const next = new Map(current)
+      next.delete(orderUuid)
+      return next
+    })
+  }, [])
+
+  return { finishPreparation, stateByOrder, clearOrderState }
 }

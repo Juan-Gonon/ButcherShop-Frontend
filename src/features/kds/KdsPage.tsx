@@ -1,10 +1,19 @@
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { LuClipboardList } from 'react-icons/lu'
 import { ConfirmedOrdersList } from './components/ConfirmedOrdersList'
 import { PreparingOrdersList } from './components/PreparingOrdersList'
 
 export const KdsPage = () => {
   const [preparingRefreshKey, setPreparingRefreshKey] = useState(0)
+  const confirmedOrdersRefetch = useRef<(() => Promise<void>) | null>(null)
+  const registerConfirmedRefetch = useCallback((refetch: (() => Promise<void>) | null) => {
+    confirmedOrdersRefetch.current = refetch
+  }, [])
+  const refreshConfirmedOrders = useCallback(() => {
+    const refetch = confirmedOrdersRefetch.current
+    if (!refetch) return Promise.reject(new Error('La lista de pedidos confirmados todavía no está disponible.'))
+    return refetch()
+  }, [])
 
   return (
     <div className='min-h-full bg-bg-light/40 p-2.5 sm:p-3.5 lg:p-4'>
@@ -26,10 +35,16 @@ export const KdsPage = () => {
 
         <div className='grid min-w-0 grid-cols-1 items-start gap-4 xl:grid-cols-12'>
           <div className='min-w-0 xl:col-span-5'>
-            <ConfirmedOrdersList onPreparationStarted={() => setPreparingRefreshKey((key) => key + 1)} />
+            <ConfirmedOrdersList
+              onPreparationStarted={() => setPreparingRefreshKey((key) => key + 1)}
+              onRefetchReady={registerConfirmedRefetch}
+            />
           </div>
           <div className='min-w-0 rounded-2xl border border-white/80 bg-white/75 p-4 shadow-sm sm:p-5 xl:col-span-7'>
-            <PreparingOrdersList refreshKey={preparingRefreshKey} />
+            <PreparingOrdersList
+              refreshConfirmedOrders={refreshConfirmedOrders}
+              refreshKey={preparingRefreshKey}
+            />
           </div>
         </div>
       </div>
