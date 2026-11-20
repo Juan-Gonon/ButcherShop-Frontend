@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FiAlertCircle, FiClipboard, FiRefreshCw } from 'react-icons/fi'
 import { useConfirmedOrders } from '../hooks/useConfirmedOrders'
+import type { KdsOrder } from '../types/kds'
 import { ConfirmedOrderCard } from './ConfirmedOrderCard'
 
 const PAGE_SIZE = 20
@@ -13,6 +14,10 @@ interface SuccessfulTransitionNotice {
 interface ConfirmedOrdersListProps {
   onPreparationStarted: () => void
   onRefetchReady: (refetch: (() => Promise<void>) | null) => void
+  onPollingReady: (poll: (() => boolean) | null) => void
+  getObservedOrderUuids: () => ReadonlySet<string>
+  onOrdersObserved: (uuids: string[]) => void
+  onNewOrders: (orders: KdsOrder[]) => void
 }
 
 const LoadingOrders = () => (
@@ -32,15 +37,50 @@ const LoadingOrders = () => (
   </div>
 )
 
-export const ConfirmedOrdersList = ({ onPreparationStarted, onRefetchReady }: ConfirmedOrdersListProps) => {
+export const ConfirmedOrdersList = ({
+  onPreparationStarted,
+  onRefetchReady,
+  onPollingReady,
+  getObservedOrderUuids,
+  onOrdersObserved,
+  onNewOrders
+}: ConfirmedOrdersListProps) => {
   const [page, setPage] = useState(1)
-  const { orders, pagination, successfulQueryCount, loading, error, refetch } = useConfirmedOrders(PAGE_SIZE, page)
+  const {
+    orders,
+    pagination,
+    successfulQueryCount,
+    successfulPollingQueryCount,
+    loading,
+    error,
+    refetch,
+    pollIfIdle
+  } = useConfirmedOrders(PAGE_SIZE, page)
   const [transitionNotice, setTransitionNotice] = useState<SuccessfulTransitionNotice | null>(null)
+  const processedPollingQueryCount = useRef(successfulPollingQueryCount)
 
   useEffect(() => {
     onRefetchReady(refetch)
     return () => onRefetchReady(null)
   }, [onRefetchReady, refetch])
+
+  useEffect(() => {
+    onPollingReady(pollIfIdle)
+    return () => onPollingReady(null)
+  }, [onPollingReady, pollIfIdle])
+
+  useEffect(() => {
+    const isPollingResult = processedPollingQueryCount.current !== successfulPollingQueryCount
+    processedPollingQueryCount.current = successfulPollingQueryCount
+
+    const knownUuids = getObservedOrderUuids()
+    const newlyConfirmed = isPollingResult
+      ? orders.filter((order) => !knownUuids.has(order.uuid))
+      : []
+
+    onOrdersObserved(orders.map((order) => order.uuid))
+    if (newlyConfirmed.length > 0) onNewOrders(newlyConfirmed)
+  }, [getObservedOrderUuids, onNewOrders, onOrdersObserved, orders, successfulPollingQueryCount])
 
   const handlePreparationStarted = (orderId: string) => {
     setTransitionNotice({ orderId, successfulQueryCount })

@@ -22,13 +22,20 @@ type ChecklistByOrder = Record<string, ReadonlySet<string>>
 interface PreparingOrdersListProps {
   refreshKey: number
   refreshConfirmedOrders: () => Promise<void>
+  onPollingReady: (poll: (() => boolean) | null) => void
+  onOrdersObserved: (uuids: string[]) => void
 }
 
-export const PreparingOrdersList = ({ refreshKey, refreshConfirmedOrders }: PreparingOrdersListProps) => {
+export const PreparingOrdersList = ({
+  refreshKey,
+  refreshConfirmedOrders,
+  onPollingReady,
+  onOrdersObserved
+}: PreparingOrdersListProps) => {
   const [page, setPage] = useState(1)
   const [checklistByOrder, setChecklistByOrder] = useState<ChecklistByOrder>({})
   const correctPage = useCallback((validPage: number) => setPage(validPage), [])
-  const { orders, pagination, loading, error, refetch } = useKdsOrders(
+  const { orders, pagination, loading, error, refetch, pollIfIdle } = useKdsOrders(
     'En preparación',
     PAGE_SIZE,
     page,
@@ -45,6 +52,15 @@ export const PreparingOrdersList = ({ refreshKey, refreshConfirmedOrders }: Prep
     stateByOrder: returnStateByOrder,
     clearOrderState: clearReturnState
   } = useReturnToCounter()
+
+  useEffect(() => {
+    onPollingReady(pollIfIdle)
+    return () => onPollingReady(null)
+  }, [onPollingReady, pollIfIdle])
+
+  useEffect(() => {
+    onOrdersObserved(orders.map((order) => order.uuid))
+  }, [onOrdersObserved, orders])
 
   const toggleDetail = useCallback((orderUuid: string, detailId: string) => {
     setChecklistByOrder((current) => {
