@@ -1,4 +1,5 @@
 import { FiClock, FiShoppingBag } from 'react-icons/fi'
+import type { FinishPreparationResult } from '../hooks/useFinishPreparation'
 import type { KdsPreparingOrder } from '../types/kds'
 
 interface PreparingOrderCardProps {
@@ -10,6 +11,11 @@ interface PreparingOrderCardProps {
     percentage: number
   }
   onToggleDetail: (detailId: string) => void
+  finishLoading: boolean
+  transitionError: string | null
+  refreshError: string | null
+  transitionSucceeded: boolean
+  onFinishPreparation: () => Promise<FinishPreparationResult | null>
 }
 
 const businessDateTime = new Intl.DateTimeFormat('es-GT', {

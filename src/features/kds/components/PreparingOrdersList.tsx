@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react'
 import { FiAlertCircle, FiClipboard, FiRefreshCw } from 'react-icons/fi'
+import { useFinishPreparation } from '../hooks/useFinishPreparation'
 import { useKdsOrders } from '../hooks/useKdsOrders'
+import type { FinishPreparationState } from '../hooks/useFinishPreparation'
 import { PreparingOrderCard } from './PreparingOrderCard'
 
 const PAGE_SIZE = 20
@@ -28,6 +30,7 @@ export const PreparingOrdersList = ({ refreshKey }: PreparingOrdersListProps) =>
     refreshKey,
     correctPage
   )
+  const { finishPreparation, stateByOrder } = useFinishPreparation()
 
   const toggleDetail = useCallback((orderUuid: string, detailId: string) => {
     setChecklistByOrder((current) => {
@@ -118,14 +121,24 @@ export const PreparingOrdersList = ({ refreshKey }: PreparingOrdersListProps) =>
               completed,
               percentage: total === 0 ? 0 : Math.round((completed / total) * 100)
             }
+            const finishState: FinishPreparationState | undefined = stateByOrder.get(order.uuid)
 
             return (
               <PreparingOrderCard
                 key={order.uuid}
                 checkedDetailIds={completedDetailIds}
+                finishLoading={finishState?.loading ?? false}
+                onFinishPreparation={() => (
+                  total > 0 && completed === total
+                    ? finishPreparation(order, refetch)
+                    : Promise.resolve(null)
+                )}
                 onToggleDetail={(detailId) => toggleDetail(order.uuid, detailId)}
                 order={order}
                 progress={progress}
+                refreshError={finishState?.refreshError ?? null}
+                transitionError={finishState?.transitionError ?? null}
+                transitionSucceeded={finishState?.transitionSucceeded ?? false}
               />
             )
           })}
