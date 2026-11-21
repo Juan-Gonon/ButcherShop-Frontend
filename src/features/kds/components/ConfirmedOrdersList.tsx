@@ -55,6 +55,7 @@ export const ConfirmedOrdersList = ({
     successfulQueryVersion,
     consumeSuccessfulQueries,
     loading,
+    initialLoading,
     pollingLoading,
     error,
     refetch,
@@ -118,6 +119,9 @@ export const ConfirmedOrdersList = ({
             title={pollingEnabled ? 'Actualización automática activa' : 'Actualización automática pausada'}
             role='img'
           />
+          {loading && !initialLoading && !pollingLoading && orders.length === 0 && (
+            <span aria-live='polite' className='text-xs text-neutral/70' role='status'>Actualizando…</span>
+          )}
         </div>
         {pagination && pagination.totalPages > 1 && (
           <div className='flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral/70'>
@@ -131,7 +135,7 @@ export const ConfirmedOrdersList = ({
         )}
       </header>
 
-      {loading && orders.length === 0 && <LoadingOrders />}
+      {initialLoading && orders.length === 0 && <LoadingOrders />}
 
       {transitionNotice && transitionNotice.successfulQueryCount === successfulQueryCount && loading && !error && (
         <p className='mb-3 text-sm font-medium text-secondary' role='status'>
@@ -180,7 +184,7 @@ export const ConfirmedOrdersList = ({
         </p>
       )}
 
-      {!loading && !error && orders.length === 0 && (
+      {!initialLoading && !error && orders.length === 0 && (
         <div className='flex min-h-40 flex-col items-center justify-center rounded-2xl border border-secondary/10 bg-secondary/5 px-4 py-6 text-center'>
           <FiClipboard aria-hidden='true' className='text-2xl text-secondary' />
           <p className='mt-3 font-semibold text-neutral'>No hay pedidos confirmados</p>

@@ -239,6 +239,7 @@ export const useKdsOrders = <State extends KdsOrderState>(
     successfulQueryVersion,
     consumeSuccessfulQueries,
     loading: currentQueryState === null,
+    initialLoading: queryState === null,
     pollingLoading: pollingRequestKey === requestKey && currentQueryState === null,
     error: currentQueryState?.error ?? null,
     refetch,

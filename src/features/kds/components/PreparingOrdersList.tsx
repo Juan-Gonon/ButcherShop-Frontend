@@ -37,7 +37,7 @@ export const PreparingOrdersList = ({
   const [page, setPage] = useState(1)
   const [checklistByOrder, setChecklistByOrder] = useState<ChecklistByOrder>({})
   const correctPage = useCallback((validPage: number) => setPage(validPage), [])
-  const { orders, pagination, loading, pollingLoading, error, refetch, pollIfIdle } = useKdsOrders(
+  const { orders, pagination, loading, initialLoading, pollingLoading, error, refetch, pollIfIdle } = useKdsOrders(
     'En preparación',
     PAGE_SIZE,
     page,
@@ -179,13 +179,16 @@ export const PreparingOrdersList = ({
             title={pollingEnabled ? 'Actualización automática activa' : 'Actualización automática pausada'}
             role='img'
           />
+          {loading && !initialLoading && !pollingLoading && orders.length === 0 && (
+            <span aria-live='polite' className='text-xs text-neutral/70' role='status'>Actualizando…</span>
+          )}
         </div>
         {pagination && pagination.totalPages > 1 && (
           <p className='text-xs text-neutral/70'>Página {pagination.page} de {pagination.totalPages}</p>
         )}
       </header>
 
-      {loading && orders.length === 0 && (
+      {initialLoading && orders.length === 0 && (
         <div aria-label='Cargando pedidos en preparación' aria-live='polite' className='space-y-3'>
           {[0, 1].map((item) => (
             <div className='animate-pulse rounded-2xl border border-white/80 bg-white/90 p-4' key={item}>
@@ -223,7 +226,7 @@ export const PreparingOrdersList = ({
         <p aria-live='polite' className='mb-3 text-sm text-neutral/70' role='status'>Actualizando pedidos en preparación…</p>
       )}
 
-      {!loading && !error && orders.length === 0 && (
+      {!initialLoading && !error && orders.length === 0 && (
         <div className='flex min-h-40 flex-col items-center justify-center rounded-2xl border border-secondary/10 bg-secondary/5 px-4 py-6 text-center'>
           <FiClipboard aria-hidden='true' className='text-2xl text-secondary' />
           <p className='mt-3 font-semibold text-neutral'>No hay pedidos en preparación</p>
